@@ -61,9 +61,15 @@ main {
   justify-content: center; padding: 8px 12px; position: relative;
 }
 .subtitle { margin: 0 0 10px; color: var(--muted); font-size: 14px; letter-spacing: .04em; }
+.modes { display: flex; gap: 4px; padding: 3px; border: 1.5px solid var(--line); border-radius: 999px; margin-bottom: 10px; }
+.modes button {
+  border: 0; background: none; color: var(--muted); font-weight: 700; font-size: 13px;
+  padding: 5px 14px; border-radius: 999px; cursor: pointer; letter-spacing: .04em;
+}
+.modes button.on { background: var(--fg); color: var(--bg); }
 
-.board { display: grid; grid-template-rows: repeat(6, 1fr); gap: 5px; }
-.row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.board { --cols: 5; display: grid; gap: 5px; }
+.row { display: grid; grid-template-columns: repeat(var(--cols, 5), 1fr); gap: 5px; }
 .tile {
   width: clamp(48px, 13vw, 62px); height: clamp(48px, 13vw, 62px);
   display: flex; align-items: center; justify-content: center;

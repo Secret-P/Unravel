@@ -4,10 +4,11 @@
    Letters of the start word are dead. Hit a dead end and the doomed rows go
    yellow, get wiped, and you rewind to your last good word. Every move counts. */
 
-const DICT = new Set(ANSWERS.concat(ALLOWED)); // accepted guesses
-const COMMON = new Set(ANSWERS);               // what "a way through" means
 const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
-const STEPS = 5;
+const VOCAB = {};                              // per word length: { dict: accepted guesses, common: "a way through" }
+for (const L of Object.keys(WORDS)) VOCAB[L] = { common: new Set(WORDS[L].common), dict: new Set(WORDS[L].common.concat(WORDS[L].accepted)) };
+let DICT, COMMON, L = 5;                       // bound to the current mode in newGame
+const modeKey = () => (L === 5 ? '' : 'easy-');
 const SITE = 'www.ribbescobb.com/unravel';
 const FLIP_MS = 120, FLIP_LEN = 500;
 
@@ -21,26 +22,26 @@ function localISO(d) {
 }
 function todayNumber() {
   const today = localISO(new Date());
-  const i = SCHEDULE.findIndex(([d]) => d === today);
+  const i = SCHEDULE[L].findIndex(([d]) => d === today);
   if (i >= 0) return i + 1;
   // Off the end of the schedule: keep counting days and wrap around.
-  const [y, m, d] = SCHEDULE[0][0].split('-').map(Number);
+  const [y, m, d] = SCHEDULE[L][0][0].split('-').map(Number);
   const days = Math.round((new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) - new Date(y, m - 1, d)) / 864e5);
   return days + 1;
 }
 function puzzleForNumber(num) {
-  const i = ((num - 1) % SCHEDULE.length + SCHEDULE.length) % SCHEDULE.length;
-  return SCHEDULE[i][1];
+  const sch = SCHEDULE[L];
+  return sch[((num - 1) % sch.length + sch.length) % sch.length][1];
 }
 
 /* ---------- rules ---------- */
 function diffPositions(a, b) {
   const d = [];
-  for (let i = 0; i < 5; i++) if (a[i] !== b[i]) d.push(i);
+  for (let i = 0; i < L; i++) if (a[i] !== b[i]) d.push(i);
   return d;
 }
 function validate(guess, prev, start, used, dead) {
-  if (guess.length !== 5) return 'Not enough letters';
+  if (guess.length !== L) return 'Not enough letters';
   if (!DICT.has(guess)) return 'Not in word list';
   if (dead.has(guess)) return 'That line is dead';
   if (used.has(guess)) return 'Already used';
@@ -54,7 +55,7 @@ function validate(guess, prev, start, used, dead) {
 }
 function moves(cur, start, used, vocab) {
   const out = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < L; i++) {
     if (cur[i] !== start[i]) continue;
     for (const c of ALPHA) {
       if (start.includes(c)) continue;
@@ -66,7 +67,7 @@ function moves(cur, start, used, vocab) {
 }
 // Can `cur` still reach five greys using only common words?
 function completable(cur, start, used) {
-  if (diffPositions(cur, start).length === STEPS) return true;
+  if (diffPositions(cur, start).length === L) return true;
   for (const w of moves(cur, start, used, COMMON)) {
     used.add(w);
     const ok = completable(w, start, used);
@@ -90,42 +91,54 @@ const store = {
   get(k, fb) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const STATS_KEY = 'unravel-stats';
+const statsKey = () => 'unravel-stats' + (L === 5 ? '' : '-easy');
 const emptyStats = () => ({ played: 0, totalMoves: 0, perfect: 0, streak: 0, last: 0 });
 
 /* ---------- game state ---------- */
 function newGame(number, practice) {
+  DICT = VOCAB[L].dict; COMMON = VOCAB[L].common;
   const start = puzzleForNumber(number);
   state = {
     number, start, practice, status: 'playing', busy: false, current: '',
     path: [], dead: [], moves: 0, deadEnds: 0, startedAt: 0, elapsed: 0,
   };
   if (!practice) {
-    const s = store.get('unravel-' + number, null);
+    const s = store.get('unravel-' + modeKey() + number, null);
     if (s && s.start === start && Array.isArray(s.path)) Object.assign(state, {
       path: s.path, dead: s.dead || [], moves: s.moves || 0, deadEnds: s.deadEnds || 0,
       status: s.status, startedAt: s.startedAt || 0, elapsed: s.elapsed || 0,
     });
   }
+  renderMode();
   renderClock();
   renderKeyboard();
   renderBoard();
   if (state.status === 'won') setTimeout(showResult, 400);
 }
+function setMode(newL) {
+  if (newL === L || (state && state.busy)) return;
+  L = newL;
+  store.set('unravel-mode', L);
+  closeAll();
+  newGame(todayNumber(), false);
+}
+function renderMode() {
+  document.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('on', Number(b.dataset.mode) === L));
+}
 function save() {
   if (state.practice) return;
   const { start, path, dead, moves, deadEnds, status, startedAt, elapsed } = state;
-  store.set('unravel-' + state.number, { start, path, dead, moves, deadEnds, status, startedAt, elapsed });
+  store.set('unravel-' + modeKey() + state.number, { start, path, dead, moves, deadEnds, status, startedAt, elapsed });
 }
 function recordStats() {
   if (state.practice) return;
-  const s = store.get(STATS_KEY, emptyStats());
+  const s = store.get(statsKey(), emptyStats());
   s.played++;
   s.totalMoves += state.moves;
-  if (state.moves === STEPS) s.perfect++;
+  if (state.moves === L) s.perfect++;
   s.streak = (s.last === state.number - 1) ? s.streak + 1 : 1;
   s.last = state.number;
-  store.set(STATS_KEY, s);
+  store.set(statsKey(), s);
 }
 
 /* ---------- input ---------- */
@@ -134,7 +147,7 @@ function onKey(k) {
   if (state.status !== 'playing') { if (k === 'enter') showResult(); return; }
   if (k === 'enter') return submit();
   if (k === 'back') { state.current = state.current.slice(0, -1); return renderBoard(); }
-  if (state.current.length < 5 && ALPHA.includes(k)) {
+  if (state.current.length < L && ALPHA.includes(k)) {
     if (!state.startedAt) { state.startedAt = Date.now(); save(); renderClock(); }
     state.current += k;
     renderBoard(true);
@@ -154,13 +167,13 @@ async function submit() {
   renderBoard(false, true);
   renderUndo();
 
-  if (state.path.length === STEPS) {
+  if (state.path.length === L) {
     state.status = 'won';
     state.elapsed = Date.now() - state.startedAt;
     save();
     renderClock();
     recordStats();
-    setTimeout(showResult, 5 * FLIP_MS + FLIP_LEN);
+    setTimeout(showResult, L * FLIP_MS + FLIP_LEN);
     return;
   }
   save();
@@ -168,7 +181,7 @@ async function submit() {
 }
 async function crash() {
   state.busy = true;
-  await sleep(5 * FLIP_MS + FLIP_LEN);
+  await sleep(L * FLIP_MS + FLIP_LEN);
   const di = doomedIndex(state.path, state.start, state.dead);
   const from = di < 0 ? state.path.length - 1 : di;  // di is never -1 at a real dead end
   const doomedWord = state.path[from];
@@ -217,14 +230,15 @@ function tileClass(word, start, i) { return word[i] === start[i] ? 'green' : 'gr
 function renderBoard(pop = false, flip = false) {
   const board = $('board');
   board.innerHTML = '';
+  board.style.setProperty('--cols', L);
   const rows = [state.start, ...state.path];
   const curRow = rows.length;
-  for (let r = 0; r <= STEPS; r++) {
+  for (let r = 0; r <= L; r++) {
     const row = document.createElement('div');
     row.className = 'row' + (r === 0 ? ' start' : '');
     row.dataset.row = r;
     const word = rows[r];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < L; i++) {
       const t = document.createElement('div');
       t.className = 'tile';
       if (word) {
@@ -309,10 +323,11 @@ function toast(msg, ms = 1400) {
 }
 function miniRows(container, words, start) {
   container.innerHTML = '';
+  container.style.setProperty('--cols', start.length);
   for (const w of words) {
     const row = document.createElement('div');
     row.className = 'row';
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < start.length; i++) {
       const t = document.createElement('div');
       t.className = 'tile ' + tileClass(w, start, i);
       t.textContent = w[i];
@@ -344,7 +359,7 @@ function renderClock() {
 /* ---------- result / share ---------- */
 function scoreLine() {
   const m = `${state.moves} move${state.moves === 1 ? '' : 's'}`;
-  const d = state.moves === STEPS ? 'perfect' : `${state.deadEnds} dead end${state.deadEnds === 1 ? '' : 's'}`;
+  const d = state.moves === L ? 'perfect' : `${state.deadEnds} dead end${state.deadEnds === 1 ? '' : 's'}`;
   return `${m} · ${d} · ⏱ ${fmt(state.elapsed)}`;
 }
 function emojiGrid() {
@@ -352,11 +367,12 @@ function emojiGrid() {
     .map(w => [...w].map((_, i) => w[i] === state.start[i] ? '🟩' : '⬜').join('')).join('\n');
 }
 function shareText() {
-  const head = state.practice ? `Unravel · ${state.start.toUpperCase()}` : `Unravel #${state.number}`;
+  const name = L === 5 ? 'Unravel' : 'Unravel Easy';
+  const head = state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`;
   return `${head}\n${emojiGrid()}\n${scoreLine()}\n${SITE}`;
 }
 function statsHtml() {
-  const s = store.get(STATS_KEY, emptyStats());
+  const s = store.get(statsKey(), emptyStats());
   return [
     ['played', s.played],
     ['avg moves', s.played ? (s.totalMoves / s.played).toFixed(1) : '–'],
@@ -365,7 +381,7 @@ function statsHtml() {
   ].map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
 }
 function showResult() {
-  const perfect = state.moves === STEPS;
+  const perfect = state.moves === L;
   $('result-title').textContent = perfect ? 'Clean sweep. Perfect.' : 'Clean sweep.';
   $('result-body').textContent = `${state.start.toUpperCase()} is gone. ${scoreLine()}.`;
   miniRows($('result-path'), [state.start, ...state.path], state.start);
@@ -400,6 +416,8 @@ function boot() {
   miniRows($('example'), ['brace', 'trace', 'trice', 'trick', 'thick', 'think'], 'brace');
 
   const params = new URLSearchParams(location.search);
+  const savedMode = Number(store.get('unravel-mode', 5));
+  L = params.has('easy') ? 4 : (savedMode === 4 ? 4 : 5);
   const p = params.get('p');
   if (p && /^\d+$/.test(p)) newGame(parseInt(p, 10), parseInt(p, 10) !== todayNumber());
   else newGame(todayNumber(), false);
@@ -416,6 +434,7 @@ function boot() {
     } else if (e.key === 'Escape' || e.key === 'Enter') closeAll();
   });
   $('btn-undo').addEventListener('click', undo);
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(Number(b.dataset.mode))));
   $('btn-help').addEventListener('click', () => open('modal-help'));
   $('btn-stats').addEventListener('click', showStats);
   $('btn-share').addEventListener('click', share);

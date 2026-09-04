@@ -19,6 +19,10 @@
   </header>
 
   <main>
+    <div class="modes" role="tablist" aria-label="Mode">
+      <button data-mode="5" role="tab">Unravel</button>
+      <button data-mode="4" role="tab">Easy</button>
+    </div>
     <p class="subtitle" id="subtitle"></p>
     <div class="board" id="board" aria-live="polite"></div>
     <div class="under">
@@ -41,7 +45,8 @@
         <li>Letters in the start word are <strong>dead</strong>. You can't play them anywhere.</li>
         <li>Each position can only be changed once.</li>
         <li>Hit a <strong>dead end</strong>? The doomed rows go yellow, get wiped, and you rewind to your last good word.</li>
-        <li>As many moves as you need. <strong>Fewer is better.</strong> Five is perfect.</li>
+        <li>As many moves as you need. <strong>Fewer is better.</strong> One per letter is perfect.</li>
+        <li><strong>Easy</strong> is the same game with four-letter words. Separate puzzle, separate stats.</li>
       </ul>
       <div class="example" id="example"></div>
       <p class="fine">One puzzle a day, new at midnight. Every puzzle has at least one solution made of common words. Born in a family Wordle thread.</p>

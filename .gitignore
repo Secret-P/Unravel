@@ -1,1 +1,5 @@
 .DS_Store
+tools/answers.txt
+tools/allowed.txt
+tools/en_50k.txt
+tools/google10k.txt
