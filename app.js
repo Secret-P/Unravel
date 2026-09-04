@@ -148,7 +148,7 @@ function onKey(k) {
   if (k === 'enter') return submit();
   if (k === 'back') { state.current = state.current.slice(0, -1); save(); return renderBoard(); }
   if (state.current.length < L && ALPHA.includes(k)) {
-    if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); }
+    if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); track('Unravel.puzzleStarted', { mode: modeName(), puzzle: state.number }); }
     state.current += k;
     save();
     renderBoard(true);
@@ -174,6 +174,7 @@ async function submit() {
     save();
     renderClock();
     recordStats();
+    track('Unravel.puzzleSolved', { mode: modeName(), puzzle: state.number, moves: state.moves, deadEnds: state.deadEnds, seconds: Math.round(state.elapsed / 1000) });
     setTimeout(showResult, L * FLIP_MS + FLIP_LEN);
     return;
   }
@@ -431,10 +432,40 @@ function showStats() {
 async function share() {
   const text = shareText();
   try {
-    if (navigator.share && /Mobi|Android|iPhone|iPad/.test(navigator.userAgent)) { await navigator.share({ text }); return; }
+    if (navigator.share && /Mobi|Android|iPhone|iPad/.test(navigator.userAgent)) { await navigator.share({ text }); track('Unravel.shared', { mode: modeName(), via: 'sheet' }); return; }
     await navigator.clipboard.writeText(text);
     toast('Copied to clipboard');
+    track('Unravel.shared', { mode: modeName(), via: 'clipboard' });
   } catch { toast('Could not share'); }
+}
+
+/* ---------- telemetry: TelemetryDeck, no cookies, no personal data ----------
+   Signals carry a random visitor id (hashed before sending), a per-load session id, and small
+   string payloads. Signals from localhost are flagged as test mode; practice (?p=N) loads send nothing. */
+const TD_APP = 'B45587C5-EA6B-4A7F-AD04-DC461B3662AD';
+const TD_URL = 'https://nom.telemetrydeck.com/v2/';
+const TD_SESSION = Math.random().toString(36).slice(2);
+const TD_TEST = /^localhost$|^127(\.\d+){0,2}\.\d+$/.test(location.hostname) || location.protocol === 'file:';
+let tdUserHash = null;
+async function tdUser() {
+  if (tdUserHash) return tdUserHash;
+  let id = store.get('unravel-visitor', null);
+  if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now()); store.set('unravel-visitor', id); }
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id + '|unravel'));
+  tdUserHash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  return tdUserHash;
+}
+const modeName = () => (L === 5 ? 'standard' : 'easy');
+async function track(type, payload = {}) {
+  try {
+    if (state && state.practice) return;
+    const body = { clientUser: await tdUser(), sessionID: TD_SESSION, appID: TD_APP, type, telemetryClientVersion: 'Unravel web' };
+    if (TD_TEST) body.isTestMode = true;
+    const p = {};
+    for (const [k, v] of Object.entries(payload)) p[k] = String(v);
+    if (Object.keys(p).length) body.payload = p;
+    await fetch(TD_URL, { method: 'POST', mode: 'cors', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([body]) });
+  } catch {}
 }
 
 /* ---------- modals ---------- */
@@ -453,6 +484,7 @@ function boot() {
   else newGame(todayNumber(), false);
 
   if (!store.get('unravel-seen-help', false)) { open('modal-help'); store.set('unravel-seen-help', true); }
+  track('pageView', { mode: modeName(), theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' });
 
   $('keyboard').addEventListener('click', e => { const k = e.target.closest('.key'); if (k) onKey(k.dataset.key); });
   document.addEventListener('keydown', e => {
