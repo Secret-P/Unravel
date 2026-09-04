@@ -194,6 +194,7 @@ async function crash() {
   const rows = [];
   for (let r = state.path.length; r >= from + 1; r--) rows.push(document.querySelector(`.row[data-row="${r}"]`));
   rows.forEach((row, k) => setTimeout(() => flipRowTo(row, 'yellow'), k * 180));
+  setTimeout(() => renderThread(from), rows.length * 180);
   await sleep(rows.length * 180 + FLIP_LEN + 500);
 
   // 2. obliterate, bottom-up
@@ -260,6 +261,34 @@ function renderBoard(pop = false, flip = false) {
       row.appendChild(t);
     }
     board.appendChild(row);
+  }
+  renderThread();
+}
+function renderThread(cutFrom = -1) {
+  const board = $('board');
+  board.querySelectorAll('.thread, .fray, .knot').forEach(el => el.remove());
+  const rows = board.querySelectorAll('.row');
+  const n = state.path.length;
+  const b = board.getBoundingClientRect();
+  const mid = (r) => rows[r].getBoundingClientRect().top - b.top + rows[r].getBoundingClientRect().height / 2;
+  const last = cutFrom >= 0 ? cutFrom : n;
+  const thread = document.createElement('div');
+  thread.className = 'thread';
+  thread.style.top = mid(0) + 'px';
+  thread.style.height = Math.max(0, mid(last) - mid(0)) + 'px';
+  board.appendChild(thread);
+  if (cutFrom >= 0 && n > cutFrom) {
+    const fray = document.createElement('div');
+    fray.className = 'fray';
+    fray.style.top = mid(cutFrom) + 'px';
+    fray.style.height = (mid(n) - mid(cutFrom)) + 'px';
+    board.appendChild(fray);
+  }
+  for (let r = 0; r <= n; r++) {
+    const k = document.createElement('div');
+    k.className = 'knot' + (cutFrom >= 0 && r > cutFrom ? ' cut' : '');
+    k.style.top = mid(r) + 'px';
+    board.appendChild(k);
   }
 }
 function flipRowTo(row, cls) {
