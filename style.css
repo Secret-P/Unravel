@@ -79,9 +79,31 @@ main {
 .tile.flip { animation: flip .5s ease; }
 .row.shake { animation: shake .4s ease; }
 .row.start .tile { border-style: solid; }
+.row.obliterate { animation: obliterate .5s ease-in forwards; }
+.row.rewound .tile { animation: rewound .7s ease; }
+
+.under { display: flex; align-items: center; gap: 14px; margin-top: 12px; min-height: 30px; }
+.moves { color: var(--muted); font-size: 14px; font-weight: 700; letter-spacing: .04em; }
+.undo {
+  border: 1.5px solid var(--line); background: none; color: var(--muted);
+  border-radius: 999px; padding: 5px 12px; font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.undo:disabled { opacity: .35; cursor: default; }
 
 @keyframes pop { 0% { transform: scale(.9);} 50% { transform: scale(1.08);} 100% { transform: scale(1);} }
 @keyframes flip { 0% { transform: rotateX(0);} 50% { transform: rotateX(90deg);} 100% { transform: rotateX(0);} }
+@keyframes obliterate {
+  0%   { transform: translateX(0) scale(1); opacity: 1; filter: blur(0); }
+  15%  { transform: translateX(-6px) scale(1.03); }
+  30%  { transform: translateX(6px) scale(1.03); }
+  45%  { transform: translateX(-4px) scale(1); }
+  100% { transform: translateX(0) scale(.6) rotateX(70deg); opacity: 0; filter: blur(3px); }
+}
+@keyframes rewound {
+  0%   { box-shadow: 0 0 0 0 var(--green); }
+  40%  { box-shadow: 0 0 0 4px var(--green); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
 @keyframes shake {
   10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(3px); }
   30%, 50%, 70% { transform: translateX(-5px); } 40%, 60% { transform: translateX(5px); }
