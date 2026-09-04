@@ -1,14 +1,15 @@
 /* Unravel — Wordle, backwards.
-   Start with the answer (5 greens). One letter per move, end on five greys.
-   Unlimited moves; fewer is better. Scoring is always against the START word.
-   Letters of the start word are dead. Hit a dead end and the doomed rows go
-   yellow, get wiped, and you rewind to your last good word. Every move counts. */
+   You start with the answer. Change one letter at a time until no letter of the start word remains.
+   Scoring is always against the START word: green = still where it started, yellow = a start letter
+   that has come back somewhere else, grey = gone. All grey wins. Fewer moves is better; par is the
+   shortest path through common words. */
 
 const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
-const VOCAB = {};                              // per word length: { dict: accepted guesses, common: "a way through" }
+const VOCAB = {};                              // per word length: { dict: accepted guesses, common: par words }
 for (const L of Object.keys(WORDS)) VOCAB[L] = { common: new Set(WORDS[L].common), dict: new Set(WORDS[L].common.concat(WORDS[L].accepted)) };
 let DICT, COMMON, L = 5;                       // bound to the current mode in newGame
 const modeKey = () => (L === 5 ? '' : 'easy-');
+const modeName = () => (L === 5 ? 'standard' : 'easy');
 const SITE = 'www.ribbescobb.com/unravel';
 const FLIP_MS = 120, FLIP_LEN = 500;
 
@@ -26,18 +27,16 @@ function todayNumber() {
   if (i >= 0) return i + 1;
   // Off the end of the schedule: keep counting days and wrap around.
   const [y, m, d] = SCHEDULE[L][0][0].split('-').map(Number);
-  const days = Math.round((new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) - new Date(y, m - 1, d)) / 864e5);
+  const n = new Date();
+  const days = Math.round((new Date(n.getFullYear(), n.getMonth(), n.getDate()) - new Date(y, m - 1, d)) / 864e5);
   return days + 1;
 }
 function scheduleEntry(num) {
   const sch = SCHEDULE[L];
   return sch[((num - 1) % sch.length + sch.length) % sch.length];
 }
-function puzzleForNumber(num) { return scheduleEntry(num)[1]; }
-function pathsLabel() {
-  const n = scheduleEntry(state.number)[2];
-  return n >= 1000 ? '1000+ paths' : `${n} path${n === 1 ? '' : 's'}`;
-}
+const puzzleForNumber = (num) => scheduleEntry(num)[1];
+const parFor = (num) => scheduleEntry(num)[2];
 
 /* ---------- rules ---------- */
 function diffPositions(a, b) {
@@ -45,39 +44,43 @@ function diffPositions(a, b) {
   for (let i = 0; i < L; i++) if (a[i] !== b[i]) d.push(i);
   return d;
 }
-function validate(guess, prev, start, used, dead) {
-  if (guess.length !== L) return 'Not enough letters';
+const isClean = (w, start) => ![...w].some(c => start.includes(c));
+function tileClass(word, start, i) {
+  if (word[i] === start[i]) return 'green';
+  return start.includes(word[i]) ? 'yellow' : 'grey';
+}
+function validate(guess, prev, used, dead) {
   if (!DICT.has(guess)) return 'Not in word list';
   if (dead.has(guess)) return 'That line is dead';
   if (used.has(guess)) return 'Already used';
   const d = diffPositions(guess, prev);
   if (d.length === 0) return 'Change a letter';
   if (d.length > 1) return 'Change exactly one letter';
-  const i = d[0];
-  if (prev[i] !== start[i]) return 'That spot is already grey';
-  if (start.includes(guess[i])) return `${guess[i].toUpperCase()} is a dead letter`;
   return null;
 }
-function moves(cur, start, used, vocab) {
-  const out = [];
-  for (let i = 0; i < L; i++) {
-    if (cur[i] !== start[i]) continue;
-    for (const c of ALPHA) {
-      if (start.includes(c)) continue;
-      const w = cur.slice(0, i) + c + cur.slice(i + 1);
-      if (vocab.has(w) && !used.has(w)) out.push(w);
-    }
+function* neighbors(w, vocab) {
+  for (let i = 0; i < L; i++) for (const c of ALPHA) {
+    if (c === w[i]) continue;
+    const x = w.slice(0, i) + c + w.slice(i + 1);
+    if (vocab.has(x)) yield x;
   }
-  return out;
 }
-// Can `cur` still reach five greys using only common words?
-function completable(cur, start, used) {
-  if (diffPositions(cur, start).length === L) return true;
-  for (const w of moves(cur, start, used, COMMON)) {
-    used.add(w);
-    const ok = completable(w, start, used);
-    used.delete(w);
-    if (ok) return true;
+function hasLegalMove(cur, used) {
+  for (const x of neighbors(cur, DICT)) if (!used.has(x)) return true;
+  return false;
+}
+// Can `cur` still reach a clean word through common words, avoiding `used`? (bounded search)
+function completable(cur, start, used, cap = 12) {
+  const seen = new Set(used); seen.add(cur);
+  let frontier = [cur];
+  for (let d = 0; d < cap && frontier.length; d++) {
+    const next = [];
+    for (const w of frontier) for (const x of neighbors(w, COMMON)) {
+      if (seen.has(x)) continue;
+      if (isClean(x, start)) return true;
+      seen.add(x); next.push(x);
+    }
+    frontier = next;
   }
   return false;
 }
@@ -86,7 +89,7 @@ function doomedIndex(path, start, dead) {
   const used = new Set([start, ...dead]);
   for (let i = 0; i < path.length; i++) {
     used.add(path[i]);
-    if (!completable(path[i], start, new Set(used))) return i;
+    if (!completable(path[i], start, used)) return i;
   }
   return -1;
 }
@@ -97,7 +100,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 const statsKey = () => 'unravel-stats' + (L === 5 ? '' : '-easy');
-const emptyStats = () => ({ played: 0, totalMoves: 0, perfect: 0, streak: 0, last: 0 });
+const emptyStats = () => ({ played: 0, overPar: 0, atPar: 0, streak: 0, last: 0 });
 
 /* ---------- game state ---------- */
 function newGame(number, practice) {
@@ -139,8 +142,8 @@ function recordStats() {
   if (state.practice) return;
   const s = store.get(statsKey(), emptyStats());
   s.played++;
-  s.totalMoves += state.moves;
-  if (state.moves === L) s.perfect++;
+  s.overPar += state.moves - parFor(state.number);
+  if (state.moves <= parFor(state.number)) s.atPar++;
   s.streak = (s.last === state.number - 1) ? s.streak + 1 : 1;
   s.last = state.number;
   store.set(statsKey(), s);
@@ -148,11 +151,8 @@ function recordStats() {
 
 /* ---------- input ---------- */
 const prevWord = () => (state.path.length ? state.path[state.path.length - 1] : state.start);
-// Positions in the next row that can still be changed (untouched = still green).
-const openPositions = () => { const p = prevWord(); const out = []; for (let i = 0; i < L; i++) if (p[i] === state.start[i]) out.push(i); return out; };
 function selectPos(i) {
-  if (state.busy || state.status !== 'playing') return;
-  if (!openPositions().includes(i)) return;
+  if (state.busy || state.status !== 'playing' || i < 0 || i >= L) return;
   if (state.edit.pos !== i) state.edit = { pos: i, letter: '' };
   save();
   renderBoard();
@@ -162,16 +162,12 @@ function onKey(k) {
   if (state.status !== 'playing') { if (k === 'enter') showResult(); return; }
   if (k === 'enter') return submit();
   if (k === 'left' || k === 'right') {
-    const open = openPositions();
-    if (!open.length) return;
-    const at = open.indexOf(state.edit.pos);
-    const next = at < 0 ? (k === 'right' ? open[0] : open[open.length - 1]) : open[(at + (k === 'right' ? 1 : open.length - 1)) % open.length];
-    return selectPos(next);
+    const at = state.edit.pos;
+    return selectPos(at === null ? (k === 'right' ? 0 : L - 1) : (at + (k === 'right' ? 1 : L - 1)) % L);
   }
   if (k === 'back') { state.edit.letter = ''; save(); return renderBoard(); }
   if (!ALPHA.includes(k)) return;
-  if (state.edit.pos === null) { toast('Tap a green letter to change it'); return shakeRow(state.path.length + 1); }
-  if (state.start.includes(k)) { toast(`${k.toUpperCase()} is a dead letter`); return shakeRow(state.path.length + 1); }
+  if (state.edit.pos === null) { toast('Tap a letter to change it'); return shakeRow(state.path.length + 1); }
   if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); track('Unravel.puzzleStarted', { mode: modeName(), puzzle: state.number }); }
   state.edit.letter = k;
   save();
@@ -180,11 +176,11 @@ function onKey(k) {
 async function submit() {
   const prev = prevWord();
   const { pos, letter } = state.edit;
-  if (pos === null) { toast('Tap a green letter to change it'); return shakeRow(state.path.length + 1); }
+  if (pos === null) { toast('Tap a letter to change it'); return shakeRow(state.path.length + 1); }
   if (!letter) { toast('Type its replacement'); return shakeRow(state.path.length + 1); }
   const guess = prev.slice(0, pos) + letter + prev.slice(pos + 1);
   const used = new Set([state.start, ...state.path]);
-  const err = validate(guess, prev, state.start, used, new Set(state.dead));
+  const err = validate(guess, prev, used, new Set(state.dead));
   if (err) { toast(err); shakeRow(state.path.length + 1); return; }
 
   state.path.push(guess);
@@ -194,33 +190,33 @@ async function submit() {
   renderBoard(false, true);
   renderUndo();
 
-  if (state.path.length === L) {
+  if (isClean(guess, state.start)) {
     state.status = 'won';
     state.elapsed = Date.now() - state.startedAt;
     save();
     renderClock();
     recordStats();
-    track('Unravel.puzzleSolved', { mode: modeName(), puzzle: state.number, moves: state.moves, deadEnds: state.deadEnds, seconds: Math.round(state.elapsed / 1000) });
+    track('Unravel.puzzleSolved', { mode: modeName(), puzzle: state.number, par: parFor(state.number), moves: state.moves, deadEnds: state.deadEnds, seconds: Math.round(state.elapsed / 1000) });
     setTimeout(showResult, L * FLIP_MS + FLIP_LEN);
     return;
   }
   save();
-  if (moves(guess, state.start, used, DICT).length === 0) await crash();
+  if (!hasLegalMove(guess, new Set([...used, ...state.dead]))) await crash();
 }
 async function crash() {
   state.busy = true;
   await sleep(L * FLIP_MS + FLIP_LEN);
   const di = doomedIndex(state.path, state.start, state.dead);
-  const from = di < 0 ? state.path.length - 1 : di;  // di is never -1 at a real dead end
+  const from = di < 0 ? state.path.length - 1 : di;
   const doomedWord = state.path[from];
   const anchor = from === 0 ? state.start : state.path[from - 1];
   state.deadEnds++;
 
-  // 1. doomed rows flip to yellow, bottom row first (the rewind starts here)
+  // 1. dead rows go to ash, bottom row first (the rewind starts here)
   toast(`Dead end. This line died at ${doomedWord.toUpperCase()}.`, 2600);
   const rows = [];
   for (let r = state.path.length; r >= from + 1; r--) rows.push(document.querySelector(`.row[data-row="${r}"]`));
-  rows.forEach((row, k) => setTimeout(() => flipRowTo(row, 'yellow'), k * 180));
+  rows.forEach((row, k) => setTimeout(() => flipRowTo(row, 'dead'), k * 180));
   setTimeout(() => renderThread(from), rows.length * 180);
   await sleep(rows.length * 180 + FLIP_LEN + 500);
 
@@ -255,14 +251,15 @@ async function undo() {
 }
 
 /* ---------- rendering ---------- */
-function tileClass(word, start, i) { return word[i] === start[i] ? 'green' : 'grey'; }
 function renderBoard(pop = false, flip = false) {
   const board = $('board');
   board.innerHTML = '';
   board.style.setProperty('--cols', L);
   const rows = [state.start, ...state.path];
-  const curRow = rows.length;
-  for (let r = 0; r <= L; r++) {
+  const curRow = rows.length;                    // index of the edit row
+  const playing = state.status === 'playing';
+  const total = playing ? Math.max(L + 1, curRow + 1) : rows.length;
+  for (let r = 0; r < total; r++) {
     const row = document.createElement('div');
     row.className = 'row' + (r === 0 ? ' start' : '');
     row.dataset.row = r;
@@ -277,26 +274,21 @@ function renderBoard(pop = false, flip = false) {
           t.classList.add('flip');
           t.style.animationDelay = `${i * FLIP_MS}ms`;
         }
-      } else if (r === curRow && state.status === 'playing') {
-        // The next row starts as your current word. Green positions can be changed; grey ones are locked.
+      } else if (r === curRow && playing) {
+        // The next row starts as your current word. Tap any letter to change it.
         const prev = rows[curRow - 1];
-        if (prev[i] !== state.start[i]) {
-          t.classList.add('locked');
-          t.textContent = prev[i];
+        t.classList.add('ghost');
+        t.dataset.pos = i;
+        t.setAttribute('role', 'button');
+        t.setAttribute('aria-label', `Change letter ${i + 1}`);
+        const sel = state.edit.pos === i;
+        if (sel) t.classList.add('selected');
+        if (sel && state.edit.letter) {
+          t.textContent = state.edit.letter;
+          t.classList.add('filled');
+          if (pop) t.classList.add('pop');
         } else {
-          t.classList.add('ghost');
-          t.dataset.pos = i;
-          t.setAttribute('role', 'button');
-          t.setAttribute('aria-label', `Change letter ${i + 1}`);
-          const sel = state.edit.pos === i;
-          if (sel) t.classList.add('selected');
-          if (sel && state.edit.letter) {
-            t.textContent = state.edit.letter;
-            t.classList.add('filled');
-            if (pop) t.classList.add('pop');
-          } else {
-            t.textContent = prev[i];
-          }
+          t.textContent = prev[i];
         }
       }
       row.appendChild(t);
@@ -304,6 +296,8 @@ function renderBoard(pop = false, flip = false) {
     board.appendChild(row);
   }
   renderThread();
+  const edit = board.querySelector(`.row[data-row="${curRow}"]`);
+  if (edit && playing) edit.scrollIntoView({ block: 'nearest' });
 }
 function renderThread(cutFrom = -1) {
   const board = $('board');
@@ -338,7 +332,7 @@ function flipRowTo(row, cls) {
     void t.offsetWidth;
     t.style.animationDelay = `${i * FLIP_MS}ms`;
     t.classList.add('flip');
-    setTimeout(() => { t.classList.remove('green', 'grey'); t.classList.add(cls); }, i * FLIP_MS + FLIP_LEN / 2);
+    setTimeout(() => { t.classList.remove('green', 'grey', 'yellow'); t.classList.add(cls); }, i * FLIP_MS + FLIP_LEN / 2);
   });
 }
 function shakeRow(r) {
@@ -374,7 +368,7 @@ function renderKeyboard() {
       } else {
         for (const c of tok) {
           const b = document.createElement('button');
-          b.className = 'key' + (state.start.includes(c) ? ' dead' : '');
+          b.className = 'key' + (state.start.includes(c) ? ' spent' : '');   // belongs to the start word: plays as yellow
           b.textContent = c;
           b.dataset.key = c;
           row.appendChild(b);
@@ -420,7 +414,7 @@ function elapsedNow() {
 }
 function renderClock() {
   clearInterval(clockTimer);
-  const label = (state.practice ? `Practice · ${state.start.toUpperCase()}` : `#${state.number}`) + ` · ${pathsLabel()}`;
+  const label = (state.practice ? `Practice · ${state.start.toUpperCase()}` : `#${state.number}`) + ` · par ${parFor(state.number)}`;
   const tick = () => { $('subtitle').textContent = state.startedAt ? `${label} · ${fmt(elapsedNow())}` : label; };
   tick();
   renderUndo();
@@ -428,38 +422,38 @@ function renderClock() {
 }
 
 /* ---------- result / share ---------- */
+function vsPar() {
+  const d = state.moves - parFor(state.number);
+  return d === 0 ? 'par' : d > 0 ? `+${d} over par` : `${d} under par`;
+}
 function scoreLine() {
-  const m = `${state.moves} move${state.moves === 1 ? '' : 's'}`;
-  const d = state.moves === L ? 'perfect' : `${state.deadEnds} dead end${state.deadEnds === 1 ? '' : 's'}`;
-  return `${m} · ${d} · ⏱ ${fmt(state.elapsed)}`;
+  return `${state.moves} move${state.moves === 1 ? '' : 's'} · ${vsPar()} · ⏱ ${fmt(state.elapsed)}`;
 }
 function emojiGrid() {
-  return [state.start, ...state.path]
-    .map(w => [...w].map((_, i) => w[i] === state.start[i] ? '🟩' : '⬜').join('')).join('\n');
+  const sq = { green: '🟩', yellow: '🟨', grey: '⬜' };
+  return [state.start, ...state.path].map(w => [...w].map((_, i) => sq[tileClass(w, state.start, i)]).join('')).join('\n');
 }
 function shareText() {
   const name = L === 5 ? 'Unravel' : 'Unravel Easy';
-  const head = (state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`) + ` · ${pathsLabel()}`;
+  const head = (state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`) + ` · par ${parFor(state.number)}`;
   return `${head}\n${emojiGrid()}\n${scoreLine()}\n${SITE}`;
 }
 function statsHtml() {
   const s = store.get(statsKey(), emptyStats());
+  const avg = s.played ? s.overPar / s.played : 0;
   return [
     ['played', s.played],
-    ['avg moves', s.played ? (s.totalMoves / s.played).toFixed(1) : '–'],
-    ['perfect', s.perfect],
+    ['vs par', s.played ? (avg > 0 ? '+' : '') + avg.toFixed(1) : '–'],
+    ['at par', s.atPar],
     ['streak', s.streak],
   ].map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
 }
 function showResult() {
-  const perfect = state.moves === L;
-  $('result-title').textContent = perfect ? 'Clean sweep. Perfect.' : 'Clean sweep.';
+  const d = state.moves - parFor(state.number);
   const onMap = state.path.every(w => COMMON.has(w));
-  const n = scheduleEntry(state.number)[2];
-  const where = onMap
-    ? (n === 1 ? 'The only path through, and you found it.' : `One of ${pathsLabel()} through.`)
-    : `Off the map: ${pathsLabel()} in common words, and yours wasn't one of them.`;
-  $('result-body').textContent = `${state.start.toUpperCase()} is gone. ${scoreLine()}. ${where}`;
+  $('result-title').textContent = d < 0 ? 'Clean sweep. Under par.' : d === 0 ? 'Clean sweep. Par.' : 'Clean sweep.';
+  const where = d < 0 ? ' Off the map: a shorter way than any in common words.' : (!onMap && d === 0 ? ' Off the map, and still par.' : '');
+  $('result-body').textContent = `${state.start.toUpperCase()} is gone. ${scoreLine()}.${where}`;
   miniRows($('result-path'), [state.start, ...state.path], state.start);
   $('stats').innerHTML = state.practice ? '' : statsHtml();
   $('btn-share').hidden = false;
@@ -500,7 +494,6 @@ async function tdUser() {
   tdUserHash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
   return tdUserHash;
 }
-const modeName = () => (L === 5 ? 'standard' : 'easy');
 async function track(type, payload = {}) {
   try {
     if (state && state.practice) return;
@@ -528,7 +521,7 @@ function boot() {
   if (p && /^\d+$/.test(p)) newGame(parseInt(p, 10), parseInt(p, 10) !== todayNumber());
   else newGame(todayNumber(), false);
 
-  if (!store.get('unravel-seen-help', false)) { open('modal-help'); store.set('unravel-seen-help', true); }
+  if (!store.get('unravel-seen-help2', false)) { open('modal-help'); store.set('unravel-seen-help2', true); }
   track('pageView', { mode: modeName(), theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' });
 
   $('keyboard').addEventListener('click', e => { const k = e.target.closest('.key'); if (k) onKey(k.dataset.key); });
