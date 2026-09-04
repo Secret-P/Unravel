@@ -1,4 +1,4 @@
-/* Unwordle — Wordle, backwards.
+/* Unravel — Wordle, backwards.
    Start with the answer (5 greens). One letter per move, end on five greys.
    Unlimited moves; fewer is better. Scoring is always against the START word.
    Letters of the start word are dead. Hit a dead end and the doomed rows go
@@ -8,7 +8,7 @@ const DICT = new Set(ANSWERS.concat(ALLOWED)); // accepted guesses
 const COMMON = new Set(ANSWERS);               // what "a way through" means
 const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
 const STEPS = 5;
-const SITE = 'www.ribbescobb.com/unwordle';
+const SITE = 'www.ribbescobb.com/unravel';
 const FLIP_MS = 120, FLIP_LEN = 500;
 
 const $ = (id) => document.getElementById(id);
@@ -90,7 +90,7 @@ const store = {
   get(k, fb) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const STATS_KEY = 'unwordle-stats2';
+const STATS_KEY = 'unravel-stats';
 const emptyStats = () => ({ played: 0, totalMoves: 0, perfect: 0, streak: 0, last: 0 });
 
 /* ---------- game state ---------- */
@@ -101,7 +101,7 @@ function newGame(number, practice) {
     path: [], dead: [], moves: 0, deadEnds: 0, startedAt: 0, elapsed: 0,
   };
   if (!practice) {
-    const s = store.get('unwordle-' + number, null);
+    const s = store.get('unravel-' + number, null);
     if (s && s.start === start && Array.isArray(s.path)) Object.assign(state, {
       path: s.path, dead: s.dead || [], moves: s.moves || 0, deadEnds: s.deadEnds || 0,
       status: s.status, startedAt: s.startedAt || 0, elapsed: s.elapsed || 0,
@@ -115,7 +115,7 @@ function newGame(number, practice) {
 function save() {
   if (state.practice) return;
   const { start, path, dead, moves, deadEnds, status, startedAt, elapsed } = state;
-  store.set('unwordle-' + state.number, { start, path, dead, moves, deadEnds, status, startedAt, elapsed });
+  store.set('unravel-' + state.number, { start, path, dead, moves, deadEnds, status, startedAt, elapsed });
 }
 function recordStats() {
   if (state.practice) return;
@@ -352,7 +352,7 @@ function emojiGrid() {
     .map(w => [...w].map((_, i) => w[i] === state.start[i] ? '🟩' : '⬜').join('')).join('\n');
 }
 function shareText() {
-  const head = state.practice ? `Unwordle · ${state.start.toUpperCase()}` : `Unwordle #${state.number}`;
+  const head = state.practice ? `Unravel · ${state.start.toUpperCase()}` : `Unravel #${state.number}`;
   return `${head}\n${emojiGrid()}\n${scoreLine()}\n${SITE}`;
 }
 function statsHtml() {
@@ -404,7 +404,7 @@ function boot() {
   if (p && /^\d+$/.test(p)) newGame(parseInt(p, 10), parseInt(p, 10) !== todayNumber());
   else newGame(todayNumber(), false);
 
-  if (!store.get('unwordle-seen-help2', false)) { open('modal-help'); store.set('unwordle-seen-help2', true); }
+  if (!store.get('unravel-seen-help', false)) { open('modal-help'); store.set('unravel-seen-help', true); }
 
   $('keyboard').addEventListener('click', e => { const k = e.target.closest('.key'); if (k) onKey(k.dataset.key); });
   document.addEventListener('keydown', e => {
