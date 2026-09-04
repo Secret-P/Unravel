@@ -101,6 +101,12 @@ const store = {
 };
 const statsKey = () => 'unravel-stats' + (L === 5 ? '' : '-easy');
 const emptyStats = () => ({ played: 0, overPar: 0, atPar: 0, streak: 0, last: 0 });
+// Stored stats may come from an older build with different fields; fill gaps and drop anything non-numeric.
+function loadStats() {
+  const s = Object.assign(emptyStats(), store.get(statsKey(), {}));
+  for (const k of Object.keys(emptyStats())) if (typeof s[k] !== 'number' || Number.isNaN(s[k])) s[k] = 0;
+  return s;
+}
 
 /* ---------- game state ---------- */
 function newGame(number, practice) {
@@ -140,7 +146,7 @@ function save() {
 }
 function recordStats() {
   if (state.practice) return;
-  const s = store.get(statsKey(), emptyStats());
+  const s = loadStats();
   s.played++;
   s.overPar += state.moves - parFor(state.number);
   if (state.moves <= parFor(state.number)) s.atPar++;
@@ -439,7 +445,7 @@ function shareText() {
   return `${head}\n${emojiGrid()}\n${scoreLine()}\n${SITE}`;
 }
 function statsHtml() {
-  const s = store.get(statsKey(), emptyStats());
+  const s = loadStats();
   const avg = s.played ? s.overPar / s.played : 0;
   return [
     ['played', s.played],
