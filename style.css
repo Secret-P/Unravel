@@ -152,7 +152,7 @@ main {
 .toast.show { opacity: 1; }
 
 /* ---------- keyboard ---------- */
-.keyboard { padding: 6px 6px calc(10px + env(safe-area-inset-bottom)); max-width: 500px; width: 100%; margin: 0 auto; }
+.keyboard { padding: 6px 6px 4px; max-width: 500px; width: 100%; margin: 0 auto; }
 .krow { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
 .key {
   flex: 1; max-width: 43px; height: 56px; border: 0; border-radius: 8px;
@@ -163,6 +163,10 @@ main {
 .key.wide { flex: 1.5; max-width: 66px; font-size: 12px; }
 .key.dead { background: var(--key-dead); color: var(--muted); text-decoration: line-through; box-shadow: none; }
 .key:active { filter: brightness(.92); }
+
+.foot { text-align: center; font-size: 11px; color: var(--muted); letter-spacing: .04em; padding: 0 12px calc(8px + env(safe-area-inset-bottom)); }
+.foot a { color: inherit; text-decoration: none; }
+.foot a:hover { text-decoration: underline; }
 
 /* ---------- sheets ---------- */
 .modal[hidden] { display: none; }
