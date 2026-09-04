@@ -7,7 +7,7 @@ DEST="$HOME/Ribbescobb-Labs/.deploys/ribbescobb.github.io"
 SHA=$(git -C "$SRC" rev-parse --short HEAD)
 if [ -n "$(git -C "$SRC" status --porcelain)" ]; then echo "Commit first: working tree is dirty."; exit 1; fi
 mkdir -p "$DEST/unravel"
-cp "$SRC"/style.css "$SRC"/app.js "$SRC"/words.js "$SRC"/puzzles.js "$DEST/unravel/"
+cp "$SRC"/style.css "$SRC"/app.js "$SRC"/words.js "$SRC"/puzzles.js "$SRC"/og.png "$DEST/unravel/"
 sed -E "s/(href|src)=\"(style\.css|app\.js|words\.js|puzzles\.js)\"/\1=\"\2?v=$SHA\"/g" "$SRC/index.html" > "$DEST/unravel/index.html"
 cd "$DEST"
 git add unravel

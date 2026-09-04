@@ -29,9 +29,14 @@ function todayNumber() {
   const days = Math.round((new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) - new Date(y, m - 1, d)) / 864e5);
   return days + 1;
 }
-function puzzleForNumber(num) {
+function scheduleEntry(num) {
   const sch = SCHEDULE[L];
-  return sch[((num - 1) % sch.length + sch.length) % sch.length][1];
+  return sch[((num - 1) % sch.length + sch.length) % sch.length];
+}
+function puzzleForNumber(num) { return scheduleEntry(num)[1]; }
+function pathsLabel() {
+  const n = scheduleEntry(state.number)[2];
+  return n >= 1000 ? '1000+ paths' : `${n} path${n === 1 ? '' : 's'}`;
 }
 
 /* ---------- rules ---------- */
@@ -380,7 +385,7 @@ function elapsedNow() {
 }
 function renderClock() {
   clearInterval(clockTimer);
-  const label = state.practice ? `Practice · ${state.start.toUpperCase()}` : `#${state.number}`;
+  const label = (state.practice ? `Practice · ${state.start.toUpperCase()}` : `#${state.number}`) + ` · ${pathsLabel()}`;
   const tick = () => { $('subtitle').textContent = state.startedAt ? `${label} · ${fmt(elapsedNow())}` : label; };
   tick();
   renderUndo();
@@ -399,7 +404,7 @@ function emojiGrid() {
 }
 function shareText() {
   const name = L === 5 ? 'Unravel' : 'Unravel Easy';
-  const head = state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`;
+  const head = (state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`) + ` · ${pathsLabel()}`;
   return `${head}\n${emojiGrid()}\n${scoreLine()}\n${SITE}`;
 }
 function statsHtml() {
@@ -414,7 +419,12 @@ function statsHtml() {
 function showResult() {
   const perfect = state.moves === L;
   $('result-title').textContent = perfect ? 'Clean sweep. Perfect.' : 'Clean sweep.';
-  $('result-body').textContent = `${state.start.toUpperCase()} is gone. ${scoreLine()}.`;
+  const onMap = state.path.every(w => COMMON.has(w));
+  const n = scheduleEntry(state.number)[2];
+  const where = onMap
+    ? (n === 1 ? 'The only path through, and you found it.' : `One of ${pathsLabel()} through.`)
+    : `Off the map: ${pathsLabel()} in common words, and yours wasn't one of them.`;
+  $('result-body').textContent = `${state.start.toUpperCase()} is gone. ${scoreLine()}. ${where}`;
   miniRows($('result-path'), [state.start, ...state.path], state.start);
   $('stats').innerHTML = state.practice ? '' : statsHtml();
   $('btn-share').hidden = false;

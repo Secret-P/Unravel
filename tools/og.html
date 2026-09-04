@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@300;500;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body { background: #EFECE5; color: #2B2823; font-family: "Source Sans 3", sans-serif; display: flex; align-items: center; }
+  .board { position: relative; margin-left: 96px; padding-left: 34px; display: grid; gap: 10px; }
+  .row { display: grid; grid-template-columns: repeat(5, 74px); gap: 10px; }
+  .tile { width: 74px; height: 74px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+    font-family: "Bitter", serif; font-weight: 700; font-size: 38px; color: #FBFAF7; text-transform: uppercase;
+    box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.14); }
+  .green { background: #5E8C5A; } .grey { background: #A39A8C; }
+  .thread { position: absolute; left: 9px; top: 37px; width: 3px; height: 457px; background: #A39A8C; opacity: .75; border-radius: 2px; }
+  .knot { position: absolute; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: #5E8C5A; border: 3px solid #EFECE5; }
+  .text { margin-left: 96px; }
+  .mark { font-family: "Bitter", serif; font-weight: 500; font-size: 92px; letter-spacing: .06em; line-height: 1; }
+  .mark .tail { display: inline-block; font-weight: 300; opacity: .8; transform: translateY(8px) rotate(7deg); transform-origin: top left; }
+  .tag { font-size: 34px; font-weight: 600; margin-top: 22px; }
+  .sub { font-size: 26px; color: #7B7568; margin-top: 10px; max-width: 520px; line-height: 1.3; }
+  .url { font-size: 22px; color: #7B7568; margin-top: 44px; letter-spacing: .04em; font-weight: 600; }
+</style></head>
+<body>
+  <div class="board" id="board"><div class="thread"></div></div>
+  <div class="text">
+    <div class="mark">UNRAVE<span class="tail">L</span></div>
+    <div class="tag">Wordle, backwards.</div>
+    <div class="sub">Start with the answer. Change one letter at a time until nothing's left.</div>
+    <div class="url">ribbescobb.com/unravel</div>
+  </div>
+  <script>
+    const S = 'brace', rows = ['brace','trace','trice','trick','thick','think'];
+    const b = document.getElementById('board');
+    rows.forEach((w, r) => {
+      const row = document.createElement('div'); row.className = 'row';
+      [...w].forEach((c, i) => { const t = document.createElement('div'); t.className = 'tile ' + (c === S[i] ? 'green' : 'grey'); t.textContent = c; row.appendChild(t); });
+      b.appendChild(row);
+      const k = document.createElement('div'); k.className = 'knot'; k.style.top = (37 + r * 84 - 7) + 'px'; b.appendChild(k);
+    });
+  </script>
+</body></html>
