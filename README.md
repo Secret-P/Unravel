@@ -6,6 +6,6 @@ Pure static site: `index.html`, `style.css`, `app.js`, plus generated `words.js`
 
 - `?p=N` loads puzzle N for QA (practice mode unless N is today's; not persisted, not counted). `?easy` opens Easy mode.
 - Link preview: `og.png` is rendered from `tools/og.html` with headless Chrome (see git log for the command); rerender if the look changes.
-- Analytics: TelemetryDeck (app id in `app.js`), signals `pageView`, `Unravel.puzzleStarted`, `Unravel.puzzleSolved`, `Unravel.shared`; random hashed visitor id, no cookies; localhost sends test-mode signals; `?p=N` practice sends nothing.
+- Analytics: TelemetryDeck (app id and org namespace `com.ribbescobb` in `app.js`; signals must go to the namespaced ingest URL or they vanish silently), signals `pageView`, `Unravel.puzzleStarted`, `Unravel.puzzleSolved`, `Unravel.shared`; random hashed visitor id, no cookies; localhost sends test-mode signals; `?p=N` practice sends nothing.
 - Deploy with `tools/deploy.sh` (copies into the ribbescobb.github.io clone, cache-busts assets with the commit SHA, pushes).
 - Regenerate data with `python3 tools/gen.py` (downloads its source word lists into `tools/` on first run).

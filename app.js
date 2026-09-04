@@ -488,7 +488,7 @@ async function share() {
    Signals carry a random visitor id (hashed before sending), a per-load session id, and small
    string payloads. Signals from localhost are flagged as test mode; practice (?p=N) loads send nothing. */
 const TD_APP = 'B45587C5-EA6B-4A7F-AD04-DC461B3662AD';
-const TD_URL = 'https://nom.telemetrydeck.com/v2/';
+const TD_URL = 'https://nom.telemetrydeck.com/v2/namespace/com.ribbescobb/';   // org namespace from the dashboard's Setup tab
 const TD_SESSION = Math.random().toString(36).slice(2);
 const TD_TEST = /^localhost$|^127(\.\d+){0,2}\.\d+$/.test(location.hostname) || location.protocol === 'file:';
 let tdUserHash = null;
