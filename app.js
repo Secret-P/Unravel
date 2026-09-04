@@ -104,14 +104,14 @@ function newGame(number, practice) {
   DICT = VOCAB[L].dict; COMMON = VOCAB[L].common;
   const start = puzzleForNumber(number);
   state = {
-    number, start, practice, status: 'playing', busy: false, current: '',
+    number, start, practice, status: 'playing', busy: false, edit: { pos: null, letter: '' },
     path: [], dead: [], moves: 0, deadEnds: 0, startedAt: 0, elapsed: 0,
   };
   if (!practice) {
     const s = store.get('unravel-' + modeKey() + number, null);
     if (s && s.start === start && Array.isArray(s.path)) Object.assign(state, {
       path: s.path, dead: s.dead || [], moves: s.moves || 0, deadEnds: s.deadEnds || 0,
-      status: s.status, startedAt: s.startedAt || 0, elapsed: s.elapsed || 0, current: s.current || '',
+      status: s.status, startedAt: s.startedAt || 0, elapsed: s.elapsed || 0, edit: s.edit || { pos: null, letter: '' },
     });
   }
   renderMode();
@@ -132,8 +132,8 @@ function renderMode() {
 }
 function save() {
   if (state.practice) return;
-  const { start, path, dead, moves, deadEnds, status, startedAt, elapsed, current } = state;
-  store.set('unravel-' + modeKey() + state.number, { start, path, dead, moves, deadEnds, status, startedAt, elapsed, current });
+  const { start, path, dead, moves, deadEnds, status, startedAt, elapsed, edit } = state;
+  store.set('unravel-' + modeKey() + state.number, { start, path, dead, moves, deadEnds, status, startedAt, elapsed, edit });
 }
 function recordStats() {
   if (state.practice) return;
@@ -147,28 +147,49 @@ function recordStats() {
 }
 
 /* ---------- input ---------- */
+const prevWord = () => (state.path.length ? state.path[state.path.length - 1] : state.start);
+// Positions in the next row that can still be changed (untouched = still green).
+const openPositions = () => { const p = prevWord(); const out = []; for (let i = 0; i < L; i++) if (p[i] === state.start[i]) out.push(i); return out; };
+function selectPos(i) {
+  if (state.busy || state.status !== 'playing') return;
+  if (!openPositions().includes(i)) return;
+  if (state.edit.pos !== i) state.edit = { pos: i, letter: '' };
+  save();
+  renderBoard();
+}
 function onKey(k) {
   if (state.busy) return;
   if (state.status !== 'playing') { if (k === 'enter') showResult(); return; }
   if (k === 'enter') return submit();
-  if (k === 'back') { state.current = state.current.slice(0, -1); save(); return renderBoard(); }
-  if (state.current.length < L && ALPHA.includes(k)) {
-    if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); track('Unravel.puzzleStarted', { mode: modeName(), puzzle: state.number }); }
-    state.current += k;
-    save();
-    renderBoard(true);
+  if (k === 'left' || k === 'right') {
+    const open = openPositions();
+    if (!open.length) return;
+    const at = open.indexOf(state.edit.pos);
+    const next = at < 0 ? (k === 'right' ? open[0] : open[open.length - 1]) : open[(at + (k === 'right' ? 1 : open.length - 1)) % open.length];
+    return selectPos(next);
   }
+  if (k === 'back') { state.edit.letter = ''; save(); return renderBoard(); }
+  if (!ALPHA.includes(k)) return;
+  if (state.edit.pos === null) { toast('Tap a green letter to change it'); return shakeRow(state.path.length + 1); }
+  if (state.start.includes(k)) { toast(`${k.toUpperCase()} is a dead letter`); return shakeRow(state.path.length + 1); }
+  if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); track('Unravel.puzzleStarted', { mode: modeName(), puzzle: state.number }); }
+  state.edit.letter = k;
+  save();
+  renderBoard(true);
 }
 async function submit() {
-  const guess = state.current;
-  const prev = state.path.length ? state.path[state.path.length - 1] : state.start;
+  const prev = prevWord();
+  const { pos, letter } = state.edit;
+  if (pos === null) { toast('Tap a green letter to change it'); return shakeRow(state.path.length + 1); }
+  if (!letter) { toast('Type its replacement'); return shakeRow(state.path.length + 1); }
+  const guess = prev.slice(0, pos) + letter + prev.slice(pos + 1);
   const used = new Set([state.start, ...state.path]);
   const err = validate(guess, prev, state.start, used, new Set(state.dead));
   if (err) { toast(err); shakeRow(state.path.length + 1); return; }
 
   state.path.push(guess);
   state.moves++;
-  state.current = '';
+  state.edit = { pos: null, letter: '' };
   used.add(guess);
   renderBoard(false, true);
   renderUndo();
@@ -225,7 +246,7 @@ async function undo() {
   row.classList.add('obliterate');
   await sleep(500);
   state.path.pop();
-  state.current = '';
+  state.edit = { pos: null, letter: '' };
   state.busy = false;
   save();
   renderBoard();
@@ -257,11 +278,25 @@ function renderBoard(pop = false, flip = false) {
           t.style.animationDelay = `${i * FLIP_MS}ms`;
         }
       } else if (r === curRow && state.status === 'playing') {
-        const c = state.current[i] || '';
-        t.textContent = c;
-        if (c) {
-          t.classList.add('filled');
-          if (pop && i === state.current.length - 1) t.classList.add('pop');
+        // The next row starts as your current word. Green positions can be changed; grey ones are locked.
+        const prev = rows[curRow - 1];
+        if (prev[i] !== state.start[i]) {
+          t.classList.add('locked');
+          t.textContent = prev[i];
+        } else {
+          t.classList.add('ghost');
+          t.dataset.pos = i;
+          t.setAttribute('role', 'button');
+          t.setAttribute('aria-label', `Change letter ${i + 1}`);
+          const sel = state.edit.pos === i;
+          if (sel) t.classList.add('selected');
+          if (sel && state.edit.letter) {
+            t.textContent = state.edit.letter;
+            t.classList.add('filled');
+            if (pop) t.classList.add('pop');
+          } else {
+            t.textContent = prev[i];
+          }
         }
       }
       row.appendChild(t);
@@ -497,11 +532,14 @@ function boot() {
   track('pageView', { mode: modeName(), theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' });
 
   $('keyboard').addEventListener('click', e => { const k = e.target.closest('.key'); if (k) onKey(k.dataset.key); });
+  $('board').addEventListener('click', e => { const t = e.target.closest('.tile[data-pos]'); if (t) selectPos(Number(t.dataset.pos)); });
   document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (!document.querySelector('.modal:not([hidden])')) {
       if (e.key === 'Enter') onKey('enter');
       else if (e.key === 'Backspace') onKey('back');
+      else if (e.key === 'ArrowLeft') onKey('left');
+      else if (e.key === 'ArrowRight') onKey('right');
       else if (/^[a-zA-Z]$/.test(e.key)) onKey(e.key.toLowerCase());
     } else if (e.key === 'Escape' || e.key === 'Enter') closeAll();
   });

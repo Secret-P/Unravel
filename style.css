@@ -91,7 +91,11 @@ main {
   border: 2px solid var(--line); border-radius: 9px; color: var(--fg);
   transition: transform .12s ease;
 }
-.tile.filled { border-color: var(--muted); }
+.tile.ghost { border-style: dashed; color: var(--muted); cursor: pointer; }
+.tile.ghost:hover { border-color: var(--muted); }
+.tile.locked { background: var(--grey); border-color: var(--grey); color: var(--on-tile); opacity: .38; }
+.tile.selected { border-style: solid; border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 30%, transparent); }
+.tile.filled { color: var(--fg); border-color: var(--green); }
 .tile.pop { animation: pop .12s ease; }
 .tile.green, .tile.grey, .tile.yellow {
   color: var(--on-tile);
