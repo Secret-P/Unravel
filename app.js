@@ -4,7 +4,6 @@
    Letters of the start word are dead. Hit a dead end and the doomed rows go
    yellow, get wiped, and you rewind to your last good word. Every move counts. */
 
-const EPOCH = new Date(2026, 8, 4);            // Puzzle #1 = 2026-09-04 (local)
 const DICT = new Set(ANSWERS.concat(ALLOWED)); // accepted guesses
 const COMMON = new Set(ANSWERS);               // what "a way through" means
 const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
@@ -16,15 +15,22 @@ const $ = (id) => document.getElementById(id);
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 let state = null;
 
-/* ---------- puzzle selection ---------- */
+/* ---------- puzzle selection (one per calendar day, device-local date) ---------- */
+function localISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 function todayNumber() {
-  const n = new Date();
-  const t = new Date(n.getFullYear(), n.getMonth(), n.getDate());
-  return Math.round((t - EPOCH) / 864e5) + 1;
+  const today = localISO(new Date());
+  const i = SCHEDULE.findIndex(([d]) => d === today);
+  if (i >= 0) return i + 1;
+  // Off the end of the schedule: keep counting days and wrap around.
+  const [y, m, d] = SCHEDULE[0][0].split('-').map(Number);
+  const days = Math.round((new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) - new Date(y, m - 1, d)) / 864e5);
+  return days + 1;
 }
 function puzzleForNumber(num) {
-  const i = ((num - 1) % PUZZLES.length + PUZZLES.length) % PUZZLES.length;
-  return PUZZLES[i][0];
+  const i = ((num - 1) % SCHEDULE.length + SCHEDULE.length) % SCHEDULE.length;
+  return SCHEDULE[i][1];
 }
 
 /* ---------- rules ---------- */
@@ -370,7 +376,7 @@ function showResult() {
 function showStats() {
   if (state.status === 'won') return showResult();
   $('result-title').textContent = 'Stats';
-  $('result-body').textContent = state.practice ? 'Practice games don\'t count.' : 'Finish today\'s puzzle to share it.';
+  $('result-body').textContent = state.practice ? 'Practice games don\'t count.' : 'Finish today\'s puzzle to share it. New puzzle at midnight.';
   $('result-path').innerHTML = '';
   $('stats').innerHTML = statsHtml();
   $('btn-share').hidden = true;
@@ -395,8 +401,7 @@ function boot() {
 
   const params = new URLSearchParams(location.search);
   const p = params.get('p');
-  if (p === 'random') newGame(1 + Math.floor(Math.random() * PUZZLES.length), true);
-  else if (p && /^\d+$/.test(p)) newGame(parseInt(p, 10), parseInt(p, 10) !== todayNumber());
+  if (p && /^\d+$/.test(p)) newGame(parseInt(p, 10), parseInt(p, 10) !== todayNumber());
   else newGame(todayNumber(), false);
 
   if (!store.get('unwordle-seen-help2', false)) { open('modal-help'); store.set('unwordle-seen-help2', true); }
@@ -414,7 +419,6 @@ function boot() {
   $('btn-help').addEventListener('click', () => open('modal-help'));
   $('btn-stats').addEventListener('click', showStats);
   $('btn-share').addEventListener('click', share);
-  $('btn-random').addEventListener('click', () => { closeAll(); newGame(1 + Math.floor(Math.random() * PUZZLES.length), true); });
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeAll));
   document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) closeAll(); }));
 }
