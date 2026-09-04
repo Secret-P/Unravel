@@ -5,4 +5,5 @@ Wordle, backwards. You start with the answer (five greens) and pull it apart one
 Pure static site: `index.html`, `style.css`, `app.js`, plus generated `words.js` and `puzzles.js`. Two modes, each with its own dated daily schedule from 2026-09-04 and its own stats: **Unravel** (5 letters, Wordle answer/allowed lists, 461 days, #1 BRACE) and **Easy** (4 letters, frequency-ranked common words filtered against first names and a blocklist, macOS dictionary for accepted guesses, 500 days, #1 TAIL). Every scheduled word has at least one all-common-word solution. `tools/schedule.txt` is the human-readable calendar. No build step. Open `index.html` or serve the folder.
 
 - `?p=N` loads puzzle N for QA (practice mode unless N is today's; not persisted, not counted). `?easy` opens Easy mode.
+- Deploy with `tools/deploy.sh` (copies into the ribbescobb.github.io clone, cache-busts assets with the commit SHA, pushes).
 - Regenerate data with `python3 tools/gen.py` (downloads its source word lists into `tools/` on first run).

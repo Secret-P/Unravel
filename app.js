@@ -106,7 +106,7 @@ function newGame(number, practice) {
     const s = store.get('unravel-' + modeKey() + number, null);
     if (s && s.start === start && Array.isArray(s.path)) Object.assign(state, {
       path: s.path, dead: s.dead || [], moves: s.moves || 0, deadEnds: s.deadEnds || 0,
-      status: s.status, startedAt: s.startedAt || 0, elapsed: s.elapsed || 0,
+      status: s.status, startedAt: s.startedAt || 0, elapsed: s.elapsed || 0, current: s.current || '',
     });
   }
   renderMode();
@@ -127,8 +127,8 @@ function renderMode() {
 }
 function save() {
   if (state.practice) return;
-  const { start, path, dead, moves, deadEnds, status, startedAt, elapsed } = state;
-  store.set('unravel-' + modeKey() + state.number, { start, path, dead, moves, deadEnds, status, startedAt, elapsed });
+  const { start, path, dead, moves, deadEnds, status, startedAt, elapsed, current } = state;
+  store.set('unravel-' + modeKey() + state.number, { start, path, dead, moves, deadEnds, status, startedAt, elapsed, current });
 }
 function recordStats() {
   if (state.practice) return;
@@ -146,10 +146,11 @@ function onKey(k) {
   if (state.busy) return;
   if (state.status !== 'playing') { if (k === 'enter') showResult(); return; }
   if (k === 'enter') return submit();
-  if (k === 'back') { state.current = state.current.slice(0, -1); return renderBoard(); }
+  if (k === 'back') { state.current = state.current.slice(0, -1); save(); return renderBoard(); }
   if (state.current.length < L && ALPHA.includes(k)) {
-    if (!state.startedAt) { state.startedAt = Date.now(); save(); renderClock(); }
+    if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); }
     state.current += k;
+    save();
     renderBoard(true);
   }
 }

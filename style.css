@@ -56,17 +56,21 @@ body {
   font-size: 18px; font-weight: 700; cursor: pointer;
 }
 
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button {
+  flex: 1; height: 42px; border: 0; background: none; color: var(--muted);
+  font-weight: 800; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer;
+  position: relative;
+}
+.tabs button.on { color: var(--fg); }
+.tabs button.on::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: -1px; height: 3px; background: var(--fg); border-radius: 2px 2px 0 0; }
+.tabs button:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
+
 main {
   flex: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: center; padding: 8px 12px; position: relative;
 }
 .subtitle { margin: 0 0 10px; color: var(--muted); font-size: 14px; letter-spacing: .04em; }
-.modes { display: flex; gap: 4px; padding: 3px; border: 1.5px solid var(--line); border-radius: 999px; margin-bottom: 10px; }
-.modes button {
-  border: 0; background: none; color: var(--muted); font-weight: 700; font-size: 13px;
-  padding: 5px 14px; border-radius: 999px; cursor: pointer; letter-spacing: .04em;
-}
-.modes button.on { background: var(--fg); color: var(--bg); }
 
 .board { --cols: 5; display: grid; gap: 5px; }
 .row { display: grid; grid-template-columns: repeat(var(--cols, 5), 1fr); gap: 5px; }
