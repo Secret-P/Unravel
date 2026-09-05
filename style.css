@@ -112,8 +112,9 @@ main {
 .row-actions { position: absolute; right: -52px; top: 0; display: flex; flex-direction: column; gap: 6px; }
 .row-actions button {
   width: 44px; height: calc((var(--tile) - 6px) / 2 + 3px); border-radius: 8px; border: 1.5px solid var(--line); background: none;
-  color: var(--muted); font-size: 18px; cursor: pointer; font-family: var(--body);
+  color: var(--muted); font-size: 18px; cursor: pointer; font-family: var(--body); line-height: 1;
 }
+.row-actions button:not(.go) { font-size: 22px; font-weight: 400; }
 .row-actions button.go { background: var(--green); border-color: var(--green); color: var(--on-tile); }
 .row-actions button:disabled { opacity: .3; cursor: default; }
 

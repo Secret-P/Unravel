@@ -353,7 +353,7 @@ function renderBoard(pop = false, flip = false) {
       const acts = document.createElement('div');
       acts.className = 'row-actions';
       const go = document.createElement('button'); go.className = 'go'; go.textContent = '✓'; go.title = 'Submit'; go.disabled = !state.edit.letter; go.addEventListener('click', submit);
-      const reset = document.createElement('button'); reset.textContent = '↺'; reset.title = 'Reset letter'; reset.disabled = !state.edit.letter;
+      const reset = document.createElement('button'); reset.textContent = '×'; reset.title = 'Put the letter back'; reset.disabled = !state.edit.letter;
       reset.addEventListener('click', () => { state.edit = { pos: null, letter: '' }; save(); renderBoard(); });
       acts.append(go, reset);
       row.style.position = 'relative';
