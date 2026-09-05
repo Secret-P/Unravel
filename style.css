@@ -239,7 +239,7 @@ main {
 .example .row, .mini .row { gap: 4px; }
 .example .tile, .mini .tile { width: 32px; height: 32px; font-size: 16px; border-width: 2px; border-radius: 6px; }
 .example { margin: 10px 0; }
-.tutorial { margin: 10px 0 12px; }
+.tutorial { margin: 10px 0 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .tut-replay { display: block; margin: 6px auto 0; border: 1.5px solid var(--line); background: none; color: var(--muted); font-family: var(--body); font-weight: 700; font-size: 13px; border-radius: 999px; padding: 5px 12px; cursor: pointer; }
 .tut-replay[hidden] { display: none; }
 .tut-cap { text-align: center; font-size: 15px; min-height: 2.6em; margin: 8px 0 0; line-height: 1.3; }
