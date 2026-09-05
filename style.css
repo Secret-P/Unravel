@@ -82,12 +82,47 @@ main {
   flex: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: safe center; padding: 8px 12px; position: relative; overflow-y: auto; min-height: 0;
 }
+.input-toggle { display: flex; gap: 2px; padding: 3px; border: 1.5px solid var(--line); border-radius: 999px; margin-bottom: 10px; }
+.input-toggle button {
+  border: 0; background: none; color: var(--muted); font-family: var(--body); font-weight: 700; font-size: 12px;
+  letter-spacing: .06em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+}
+.input-toggle button.on { background: var(--fg); color: var(--bg); }
+.input-toggle .beta { font-size: 9px; letter-spacing: .1em; padding: 1px 5px; border-radius: 999px; background: var(--yellow); color: #2B2823; margin-left: 4px; vertical-align: 1px; }
+.input-toggle button.on .beta { background: var(--yellow); }
+.keyboard[hidden] { display: none; }
+
+/* reels: every tile in the play row is a spinnable letter wheel */
+.board.reel-mode { padding-right: 52px; }
+.tile.reel { position: relative; overflow: hidden; cursor: ns-resize; touch-action: none; border-style: solid; border-color: var(--line); color: var(--muted); }
+.tile.reel.changed { color: var(--fg); border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 30%, transparent); }
+.tile.reel .strip { position: absolute; left: 0; right: 0; top: -200%; height: 500%; will-change: transform; }
+.tile.reel .strip span { position: relative; display: flex; align-items: center; justify-content: center; height: 20%; text-transform: uppercase; }
+.tile.reel .strip span:not(.mid) { opacity: .22; font-size: .8em; }
+.tile.reel .strip span.spent::after { content: ""; position: absolute; right: 5px; bottom: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+.tile.reel::before, .tile.reel::after {
+  content: ""; position: absolute; left: 50%; width: 0; height: 0; margin-left: -4px; pointer-events: none; opacity: .45;
+  border-left: 4px solid transparent; border-right: 4px solid transparent;
+}
+.tile.reel::before { top: 3px; border-bottom: 4px solid var(--muted); }
+.tile.reel::after { bottom: 3px; border-top: 4px solid var(--muted); }
+.tile.reel.tick { animation: tick .12s ease; }
+@keyframes tick { 50% { transform: scale(1.04); } }
+.row-actions { position: absolute; right: -52px; top: 0; display: flex; flex-direction: column; gap: 6px; }
+.row-actions button {
+  width: 44px; height: calc((var(--tile) - 6px) / 2 + 3px); border-radius: 8px; border: 1.5px solid var(--line); background: none;
+  color: var(--muted); font-size: 18px; cursor: pointer; font-family: var(--body);
+}
+.row-actions button.go { background: var(--green); border-color: var(--green); color: var(--on-tile); }
+.row-actions button:disabled { opacity: .3; cursor: default; }
+
 .subtitle { margin: 0 0 12px; color: var(--muted); font-size: 14px; letter-spacing: .06em; font-weight: 600; }
 
 .board { --cols: 5; display: grid; gap: 6px; position: relative; padding-left: 18px; }
 .row { display: grid; grid-template-columns: repeat(var(--cols, 5), 1fr); gap: 6px; }
+.board { --tile: clamp(46px, 12.5vw, 60px); }
 .tile {
-  width: clamp(46px, 12.5vw, 60px); height: clamp(46px, 12.5vw, 60px);
+  width: var(--tile); height: var(--tile);
   display: flex; align-items: center; justify-content: center;
   font-family: var(--display); font-size: clamp(23px, 6.2vw, 30px); font-weight: 700; text-transform: uppercase;
   border: 2px solid var(--line); border-radius: 9px; color: var(--fg);
@@ -107,7 +142,7 @@ main {
 .tile.grey { background: var(--grey); border-color: var(--grey); }
 .tile.yellow { background: var(--yellow); border-color: var(--yellow); }
 .tile.flip { animation: flip .5s ease; }
-.row.shake { animation: shake .4s ease; }
+.row.shake, .tile.shake { animation: shake .4s ease; }
 .row.obliterate { animation: obliterate .5s ease-in forwards; }
 .row.rewound .tile { animation: rewound .7s ease; }
 

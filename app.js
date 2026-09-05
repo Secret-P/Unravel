@@ -14,6 +14,7 @@ const SITE = 'www.ribbescobb.com/unravel';
 const FLIP_MS = 120, FLIP_LEN = 500;
 
 const $ = (id) => document.getElementById(id);
+let inputMode = 'keys';                        // 'keys' (on-screen keyboard) or 'reel' (beta: spin the letters)
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 let state = null;
 
@@ -171,10 +172,14 @@ function onKey(k) {
     const at = state.edit.pos;
     return selectPos(at === null ? (k === 'right' ? 0 : L - 1) : (at + (k === 'right' ? 1 : L - 1)) % L);
   }
+  if (k === 'up' || k === 'down') { if (inputMode === 'reel') spinFocused(k === 'down' ? 1 : -1); return; }
   if (k === 'back') { state.edit.letter = ''; save(); return renderBoard(); }
   if (!ALPHA.includes(k)) return;
-  if (state.edit.pos === null) { toast('Tap a letter to change it'); return shakeRow(state.path.length + 1); }
-  if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); track('Unravel.puzzleStarted', { mode: modeName(), puzzle: state.number }); }
+  if (state.edit.pos === null) {
+    if (inputMode === 'reel') state.edit = { pos: 0, letter: '' };
+    else { toast('Tap a letter to change it'); return shakeRow(state.path.length + 1); }
+  }
+  if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); track('Unravel.puzzleStarted', { mode: modeName(), puzzle: state.number, input: inputMode }); }
   state.edit.letter = k;
   save();
   renderBoard(true);
@@ -202,7 +207,7 @@ async function submit() {
     save();
     renderClock();
     recordStats();
-    track('Unravel.puzzleSolved', { mode: modeName(), puzzle: state.number, par: parFor(state.number), moves: state.moves, deadEnds: state.deadEnds, seconds: Math.round(state.elapsed / 1000) });
+    track('Unravel.puzzleSolved', { mode: modeName(), puzzle: state.number, par: parFor(state.number), moves: state.moves, deadEnds: state.deadEnds, seconds: Math.round(state.elapsed / 1000), input: inputMode });
     setTimeout(showResult, L * FLIP_MS + FLIP_LEN);
     return;
   }
@@ -280,6 +285,17 @@ function renderBoard(pop = false, flip = false) {
           t.classList.add('flip');
           t.style.animationDelay = `${i * FLIP_MS}ms`;
         }
+      } else if (r === curRow && playing && inputMode === 'reel') {
+        // Reel: every tile is a letter wheel. Spin one; the changed one is the move.
+        const prev = rows[curRow - 1];
+        const changed = state.edit.pos === i && state.edit.letter && state.edit.letter !== prev[i];
+        const cur = changed ? state.edit.letter : prev[i];
+        t.classList.add('reel');
+        if (changed) t.classList.add('changed');
+        t.dataset.pos = i;
+        t.dataset.base = prev[i];
+        t.setAttribute('aria-label', `Letter ${i + 1}: ${cur.toUpperCase()}. Drag to spin.`);
+        t.appendChild(buildStrip(ALPHA.indexOf(cur)));
       } else if (r === curRow && playing) {
         // The next row starts as your current word. Tap any letter to change it.
         const prev = rows[curRow - 1];
@@ -299,12 +315,145 @@ function renderBoard(pop = false, flip = false) {
       }
       row.appendChild(t);
     }
+    if (r === curRow && playing && inputMode === 'reel') {
+      const acts = document.createElement('div');
+      acts.className = 'row-actions';
+      const go = document.createElement('button'); go.className = 'go'; go.textContent = '✓'; go.title = 'Submit'; go.disabled = !state.edit.letter; go.addEventListener('click', submit);
+      const reset = document.createElement('button'); reset.textContent = '↺'; reset.title = 'Reset letter'; reset.disabled = !state.edit.letter;
+      reset.addEventListener('click', () => { state.edit = { pos: null, letter: '' }; save(); renderBoard(); });
+      acts.append(go, reset);
+      row.style.position = 'relative';
+      row.appendChild(acts);
+    }
     board.appendChild(row);
   }
+  board.classList.toggle('reel-mode', playing && inputMode === 'reel');
   renderThread();
   const edit = board.querySelector(`.row[data-row="${curRow}"]`);
   if (edit && playing) edit.scrollIntoView({ block: 'nearest' });
 }
+/* ---------- reel input: drag to spin, momentum, snap ---------- */
+const letterAt = (p) => ALPHA[((Math.round(p) % 26) + 26) % 26];
+function buildStrip(p) {
+  const strip = document.createElement('div');
+  strip.className = 'strip';
+  const base = Math.floor(p), frac = p - base;
+  for (let k = -2; k <= 2; k++) {
+    const span = document.createElement('span');
+    const c = ALPHA[(((base + k) % 26) + 26) % 26];
+    span.textContent = c;
+    if (k === 0) span.classList.add('mid');
+    if (state.start.includes(c)) span.classList.add('spent');
+    strip.appendChild(span);
+  }
+  strip.style.transform = `translateY(${(-frac * 20).toFixed(3)}%)`;
+  return strip;
+}
+function setReelPos(tile, p) {
+  const old = tile.querySelector('.strip');
+  const fresh = buildStrip(p);
+  if (old) old.replaceWith(fresh); else tile.appendChild(fresh);
+}
+// Commit a reel's resting letter as the current edit; spinning a second reel snaps the first back.
+function commitReel(tile, p) {
+  const i = Number(tile.dataset.pos);
+  const letter = letterAt(p);
+  const base = tile.dataset.base;
+  if (letter === base) {
+    if (state.edit.pos === i) state.edit = { pos: null, letter: '' };
+  } else {
+    if (state.edit.pos !== null && state.edit.pos !== i) {
+      const other = document.querySelector(`.tile.reel[data-pos="${state.edit.pos}"]`);
+      if (other) shakeTile(other);
+    }
+    if (!state.startedAt) { state.startedAt = Date.now(); renderClock(); track('Unravel.puzzleStarted', { mode: modeName(), puzzle: state.number, input: inputMode }); }
+    state.edit = { pos: i, letter };
+  }
+  save();
+  renderBoard();
+}
+function shakeTile(t) { t.classList.add('shake'); setTimeout(() => t.classList.remove('shake'), 450); }
+function tick(tile) {
+  tile.classList.remove('tick'); void tile.offsetWidth; tile.classList.add('tick');
+  if (navigator.vibrate) navigator.vibrate(4);
+}
+let drag = null;
+function onReelDown(e) {
+  const tile = e.target.closest('.tile.reel');
+  if (!tile || state.busy || state.status !== 'playing') return;
+  e.preventDefault();
+  try { tile.setPointerCapture(e.pointerId); } catch {}
+  const mid = tile.querySelector('.strip .mid');
+  drag = { tile, id: e.pointerId, y0: e.clientY, y: e.clientY, t: performance.now(), v: 0,
+           p0: ALPHA.indexOf(mid.textContent), p: ALPHA.indexOf(mid.textContent), h: tile.getBoundingClientRect().height, moved: false, last: 0 };
+  drag.last = Math.round(drag.p);
+}
+function onReelMove(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const now = performance.now();
+  const dy = e.clientY - drag.y;
+  const dt = Math.max(1, now - drag.t);
+  drag.v = 0.8 * drag.v + 0.2 * (-dy / drag.h / dt);        // letters per ms
+  drag.y = e.clientY; drag.t = now;
+  drag.p += -dy / drag.h;
+  if (Math.abs(e.clientY - drag.y0) > 6) drag.moved = true;
+  setReelPos(drag.tile, drag.p);
+  const r = Math.round(drag.p);
+  if (r !== drag.last) { drag.last = r; tick(drag.tile); }
+}
+function onReelUp(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null;
+  if (!d.moved) {
+    // tap: top half steps back a letter, bottom half steps forward
+    const rect = d.tile.getBoundingClientRect();
+    const target = d.p0 + (e.clientY < rect.top + rect.height / 2 ? -1 : 1);
+    tick(d.tile);
+    return glideReel(d.tile, d.p0, target);
+  }
+  // momentum, then snap
+  let p = d.p, v = Math.max(-1.2, Math.min(1.2, d.v * 16));   // letters per frame, capped so a flick covers ~10 letters
+  let lastTick = performance.now();
+  const step = (now) => {
+    const dt = Math.min(48, now - lastTick); lastTick = now;
+    p += v * dt / 16;
+    v *= Math.pow(0.9, dt / 16);
+    setReelPos(d.tile, p);
+    const r = Math.round(p);
+    if (r !== d.last) { d.last = r; tick(d.tile); }
+    if (Math.abs(v) > 0.004) return requestAnimationFrame(step);
+    glideReel(d.tile, p, Math.round(p));
+  };
+  requestAnimationFrame(step);
+}
+function glideReel(tile, from, to) {
+  const t0 = performance.now(), dur = 140;
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    setReelPos(tile, from + (to - from) * e);
+    if (k < 1) return requestAnimationFrame(step);
+    commitReel(tile, to);
+  };
+  requestAnimationFrame(step);
+}
+function spinFocused(delta) {
+  const i = state.edit.pos !== null ? state.edit.pos : 0;
+  const tile = document.querySelector(`.tile.reel[data-pos="${i}"]`);
+  if (!tile) return;
+  const cur = ALPHA.indexOf(tile.querySelector('.strip .mid').textContent);
+  tick(tile);
+  glideReel(tile, cur, cur + delta);
+}
+function setInputMode(m) {
+  if (m === inputMode) return;
+  inputMode = m;
+  store.set('unravel-input', m);
+  document.querySelectorAll('[data-input]').forEach(b => b.classList.toggle('on', b.dataset.input === m));
+  $('keyboard').hidden = (m === 'reel');
+  renderBoard();
+}
+
 function renderThread(cutFrom = -1) {
   const board = $('board');
   board.querySelectorAll('.thread, .fray, .knot').forEach(el => el.remove());
@@ -521,6 +670,9 @@ function boot() {
   miniRows($('example'), ['brace', 'trace', 'trice', 'trick', 'thick', 'think'], 'brace');
 
   const params = new URLSearchParams(location.search);
+  inputMode = store.get('unravel-input', 'keys') === 'reel' ? 'reel' : 'keys';
+  document.querySelectorAll('[data-input]').forEach(b => b.classList.toggle('on', b.dataset.input === inputMode));
+  $('keyboard').hidden = (inputMode === 'reel');
   const savedMode = Number(store.get('unravel-mode', 5));
   L = params.has('easy') ? 4 : (savedMode === 4 ? 4 : 5);
   const p = params.get('p');
@@ -531,7 +683,12 @@ function boot() {
   track('pageView', { mode: modeName(), theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' });
 
   $('keyboard').addEventListener('click', e => { const k = e.target.closest('.key'); if (k) onKey(k.dataset.key); });
-  $('board').addEventListener('click', e => { const t = e.target.closest('.tile[data-pos]'); if (t) selectPos(Number(t.dataset.pos)); });
+  $('board').addEventListener('click', e => { const t = e.target.closest('.tile.ghost[data-pos]'); if (t) selectPos(Number(t.dataset.pos)); });
+  $('board').addEventListener('pointerdown', onReelDown);
+  $('board').addEventListener('pointermove', onReelMove);
+  $('board').addEventListener('pointerup', onReelUp);
+  $('board').addEventListener('pointercancel', onReelUp);
+  document.querySelectorAll('[data-input]').forEach(b => b.addEventListener('click', () => setInputMode(b.dataset.input)));
   document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (!document.querySelector('.modal:not([hidden])')) {
@@ -539,6 +696,8 @@ function boot() {
       else if (e.key === 'Backspace') onKey('back');
       else if (e.key === 'ArrowLeft') onKey('left');
       else if (e.key === 'ArrowRight') onKey('right');
+      else if (e.key === 'ArrowUp') { e.preventDefault(); onKey('up'); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); onKey('down'); }
       else if (/^[a-zA-Z]$/.test(e.key)) onKey(e.key.toLowerCase());
     } else if (e.key === 'Escape' || e.key === 'Enter') closeAll();
   });
