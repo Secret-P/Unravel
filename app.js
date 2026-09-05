@@ -715,13 +715,15 @@ function tutorialStart() {
     tutRender(['car', 'cat', 'bat', 'bit'], null, 'CAR to CAT to BAT to BIT. One letter per move until nothing of CAR is left.', false);
     return;
   }
+  $('tut-replay').hidden = true;
   let i = 0;
   const step = () => {
     const [rows, edit, cap, hold] = TUT_STEPS[i];
-    const prevRows = TUT_STEPS[(i + TUT_STEPS.length - 1) % TUT_STEPS.length][0];
+    const prevRows = i === 0 ? [] : TUT_STEPS[i - 1][0];
     tutRender(rows, edit, cap, rows.length > prevRows.length);
-    i = (i + 1) % TUT_STEPS.length;
-    tutTimer = setTimeout(step, hold);
+    i++;
+    if (i < TUT_STEPS.length) tutTimer = setTimeout(step, hold);
+    else { tutTimer = null; $('tut-replay').hidden = false; }   // plays through once, then offers a replay
   };
   step();
 }
@@ -769,6 +771,7 @@ function boot() {
   $('btn-undo').addEventListener('click', undo);
   document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(Number(b.dataset.mode))));
   $('btn-help').addEventListener('click', () => open('modal-help'));
+  $('tut-replay').addEventListener('click', tutorialStart);
   $('btn-warmup').addEventListener('click', () => { closeAll(); if (L !== 3) setMode(3); });
   $('btn-stats').addEventListener('click', showStats);
   $('btn-share').addEventListener('click', share);
