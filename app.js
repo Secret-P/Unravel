@@ -665,7 +665,23 @@ async function track(type, payload = {}) {
 
 /* ---------- tutorial: a real par-3 solve, played on a loop while the help sheet is open ---------- */
 const TUT_START = 'car';
+// Tutorial line with a yellow step (CAR, CAN, RAN, TAN, TIN): ends one over par to show what yellow costs.
+// The original clean par-3 line (CAR, CAT, BAT, BIT) is kept below, commented out, in case this proves cumbersome.
 const TUT_STEPS = [                      // [committed rows, edit {pos, letter} or null, caption, hold ms]
+  [['car'], null, 'You start with the answer.', 1500],
+  [['car'], { pos: 2, letter: '' }, 'Pick a letter to change.', 1000],
+  [['car'], { pos: 2, letter: 'n' }, 'R becomes N.', 900],
+  [['car', 'can'], null, 'CAN. The R is gone, so it turns grey.', 1800],
+  [['car', 'can'], { pos: 0, letter: '' }, 'Again.', 800],
+  [['car', 'can'], { pos: 0, letter: 'r' }, 'C becomes R.', 900],
+  [['car', 'can', 'ran'], null, 'RAN. The R is back, in a new spot. Yellow means it still has to go.', 2600],
+  [['car', 'can', 'ran'], { pos: 0, letter: 't' }, 'So R becomes T.', 1000],
+  [['car', 'can', 'ran', 'tan'], null, 'TAN. Grey again.', 1400],
+  [['car', 'can', 'ran', 'tan'], { pos: 1, letter: 'i' }, 'Last one. A becomes I.', 1000],
+  [['car', 'can', 'ran', 'tan', 'tin'], null, 'TIN. Nothing left of CAR. Four moves on a par 3: the R detour cost one.', 3200],
+];
+/* Original clean line, no yellow:
+const TUT_STEPS = [
   [['car'], null, 'You start with the answer.', 1500],
   [['car'], { pos: 2, letter: '' }, 'Pick a letter to change.', 1000],
   [['car'], { pos: 2, letter: 't' }, 'R becomes T.', 900],
@@ -677,6 +693,7 @@ const TUT_STEPS = [                      // [committed rows, edit {pos, letter} 
   [['car', 'cat', 'bat'], { pos: 1, letter: 'i' }, 'A becomes I.', 900],
   [['car', 'cat', 'bat', 'bit'], null, 'BIT. Nothing left of CAR. Three moves, par 3.', 2600],
 ];
+*/
 let tutTimer = null;
 function tutRender(rows, edit, caption, flipLast) {
   const board = $('tut-board');
@@ -712,7 +729,7 @@ function tutRender(rows, edit, caption, flipLast) {
 function tutorialStart() {
   tutorialStop();
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    tutRender(['car', 'cat', 'bat', 'bit'], null, 'CAR to CAT to BAT to BIT. One letter per move until nothing of CAR is left.', false);
+    tutRender(['car', 'can', 'ran', 'tan', 'tin'], null, 'CAR to CAN to RAN to TAN to TIN. One letter per move until nothing of CAR is left; the yellow R had to go again.', false);
     return;
   }
   $('tut-replay').hidden = true;
