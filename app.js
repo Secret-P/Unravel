@@ -462,10 +462,11 @@ function renderThread(cutFrom = -1) {
   const b = board.getBoundingClientRect();
   const mid = (r) => rows[r].getBoundingClientRect().top - b.top + rows[r].getBoundingClientRect().height / 2;
   const last = cutFrom >= 0 ? cutFrom : n;
+  if (n === 0) return;                           // no moves yet: no thread
   const thread = document.createElement('div');
   thread.className = 'thread';
-  thread.style.top = mid(0) + 'px';
-  thread.style.height = Math.max(0, mid(last) - mid(0)) + 'px';
+  thread.style.top = mid(1) + 'px';
+  thread.style.height = Math.max(0, mid(Math.max(1, last)) - mid(1)) + 'px';
   board.appendChild(thread);
   if (cutFrom >= 0 && n > cutFrom) {
     const fray = document.createElement('div');
@@ -474,7 +475,7 @@ function renderThread(cutFrom = -1) {
     fray.style.height = (mid(n) - mid(cutFrom)) + 'px';
     board.appendChild(fray);
   }
-  for (let r = 0; r <= n; r++) {
+  for (let r = 1; r <= n; r++) {
     const k = document.createElement('div');
     k.className = 'knot' + (cutFrom >= 0 && r > cutFrom ? ' cut' : '');
     k.style.top = mid(r) + 'px';
@@ -544,9 +545,9 @@ function toast(msg, ms = 1400) {
 function miniRows(container, words, start) {
   container.innerHTML = '';
   container.style.setProperty('--cols', start.length);
-  for (const w of words) {
+  words.forEach((w, r) => {
     const row = document.createElement('div');
-    row.className = 'row';
+    row.className = 'row' + (r === 0 ? ' start' : '');
     for (let i = 0; i < start.length; i++) {
       const t = document.createElement('div');
       t.className = 'tile ' + tileClass(w, start, i);
@@ -554,7 +555,7 @@ function miniRows(container, words, start) {
       row.appendChild(t);
     }
     container.appendChild(row);
-  }
+  });
 }
 
 /* ---------- clock ---------- */

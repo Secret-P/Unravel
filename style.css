@@ -145,6 +145,8 @@ main {
 .row.shake, .tile.shake { animation: shake .4s ease; }
 .row.obliterate { animation: obliterate .5s ease-in forwards; }
 .row.rewound .tile { animation: rewound .7s ease; }
+.row.start { padding-bottom: 10px; margin-bottom: 6px; border-bottom: 2px solid color-mix(in srgb, var(--grey) 70%, transparent); }
+.example .row.start, .mini .row.start { padding-bottom: 6px; margin-bottom: 3px; }
 
 /* the thread: runs beside the surviving line, knotted at each row, frays over doomed rows */
 .thread { position: absolute; left: 5px; width: 2px; background: var(--grey); opacity: .75; border-radius: 2px; pointer-events: none; }
