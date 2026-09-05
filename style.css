@@ -82,6 +82,7 @@ main {
   flex: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: safe center; padding: 8px 12px; position: relative; overflow-y: auto; min-height: 0;
 }
+.input-label { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
 .input-toggle { display: flex; gap: 2px; padding: 3px; border: 1.5px solid var(--line); border-radius: 999px; margin-bottom: 10px; }
 .input-toggle button {
   border: 0; background: none; color: var(--muted); font-family: var(--body); font-weight: 700; font-size: 12px;
