@@ -37,6 +37,21 @@ Pay-what-you-want with a floor. "Tip the dad anything over $3 and every puzzle w
 - Show the tail: "212 people have tipped" on the sheet is worth more than any button copy. The floor is the price; set it as one.
 - Depends on 1 (payment confirmation endpoint). Land only after retention is real — a paywall on a game with no habit just measures how few players there were.
 
+## 3b. "Insane" tier: a daily 6-letter puzzle, unlocked by the tip (Chris, 2026-09-05)
+
+Feasible under the par model; it was dead under the old locked rules. Numbers (2026-09-05):
+
+| Par path vocabulary | Solvable 6-letter starts (of 3,000 common) | Par range |
+|---|---|---|
+| Frequency top 6,000 real words | 339 | 6 to 16 (311 at par ≤ 12) |
+| Full 15k dictionary | 1,802 | 6 to 16 (600 at par 6) |
+
+- Compute par through the **top-6,000** list, not the full dictionary, so par is reachable with words a strong player knows. Cap scheduled par at 12 → ~310 puzzles, about ten months, mostly par 7 to 11. Long ladders are the point of the tier.
+- Start words come from the top 3,000 (BETTER, MURDER, WRITER, CANYON, GUTTER, TINKER...). Needs its own blocklist pass (BUGGER etc.).
+- Board already scrolls for long ladders; the share card will need the grid capped or summarised (see Smaller items).
+- **Unlock UX:** a fourth tab with a padlock, visible to everyone, opens on tipping. That's the visual reward for 3, alongside the archive. Four tabs fit a 375px phone at the current tab type size, barely; check on a real device.
+- Seven letters: not measured with a wide vocabulary; six is enough.
+
 ## 4. Calendar view (Chris, 2026-09-05)
 
 A month grid. Each day shows **three dots**, one per puzzle (Warm-up · Easy · Standard), filled when that puzzle was solved. A small mark on the date when all three were cleared that day ("cleared the day").
