@@ -52,7 +52,7 @@ body {
 /* ---------- header ---------- */
 .top {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 12px; height: 54px;
+  padding: 0 12px; height: 54px; max-width: 500px; width: 100%; margin: 0 auto;
 }
 .top h1 {
   margin: 0; font-family: var(--display); font-weight: 500; font-size: 27px; letter-spacing: .08em;
@@ -67,7 +67,7 @@ body {
   font-size: 17px; font-weight: 700; cursor: pointer; font-family: var(--body);
 }
 
-.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; border-bottom: 1px solid var(--line); max-width: 500px; width: 100%; margin: 0 auto; }
 .tabs button {
   flex: 1; height: 40px; border: 0; background: none; color: var(--muted); font-family: var(--body);
   font-weight: 700; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; cursor: pointer;
