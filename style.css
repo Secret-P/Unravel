@@ -238,6 +238,10 @@ main {
 .example .row, .mini .row { gap: 4px; }
 .example .tile, .mini .tile { width: 32px; height: 32px; font-size: 16px; border-width: 2px; border-radius: 6px; }
 .example { margin: 10px 0; }
+.tutorial { margin: 10px 0 12px; }
+.tut-cap { text-align: center; font-size: 15px; min-height: 2.6em; margin: 8px 0 0; line-height: 1.3; }
+.mini .tile.ghost { color: var(--muted); }
+
 .stats { display: flex; justify-content: center; gap: 22px; margin: 14px 0 4px; }
 .stat { text-align: center; }
 .stat b { display: block; font-family: var(--display); font-weight: 500; font-size: 27px; font-variant-numeric: tabular-nums; }

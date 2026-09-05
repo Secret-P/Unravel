@@ -32,8 +32,9 @@
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Mode">
-    <button data-mode="5" role="tab">Standard</button>
+    <button data-mode="3" role="tab">Warm-up</button>
     <button data-mode="4" role="tab">Easy</button>
+    <button data-mode="5" role="tab">Standard</button>
   </nav>
 
   <main>
@@ -59,6 +60,10 @@
       <button class="close" data-close aria-label="Close">×</button>
       <h2>How to play</h2>
       <p><strong>Wordle, backwards.</strong> You start with the answer. Pull it apart.</p>
+      <div class="tutorial">
+        <div class="mini" id="tut-board"></div>
+        <p class="tut-cap" id="tut-cap"></p>
+      </div>
       <ul>
         <li><strong>Tap a letter</strong>, type its replacement, press Enter. That's one move.</li>
         <li><strong>Reel</strong> (beta) drops the keyboard: spin any letter in the bottom row like a combination lock, then tap ✓.</li>
@@ -66,11 +71,14 @@
         <li><span class="sw green"></span> still where it started. <span class="sw yellow"></span> a start letter that's come back somewhere. <span class="sw grey"></span> gone.</li>
         <li><strong>All grey wins.</strong> As many moves as you need. Fewer is better.</li>
         <li><strong>Par</strong> is the shortest way through in common words. Beat it and you've gone off the map.</li>
-        <li><strong>Easy</strong> is the same game with four-letter words. Its own daily puzzle, its own stats.</li>
+        <li><strong>Warm-up</strong> is three letters, <strong>Easy</strong> is four, <strong>Standard</strong> is five. Each has its own daily puzzle and stats.</li>
       </ul>
-      <div class="example" id="example"></div>
       <p class="fine">One puzzle a day, new at midnight. Born in a family Wordle thread.</p>
       <p class="fine">Anonymous usage counts via TelemetryDeck: page loads, puzzles started and solved, shares. No cookies, no personal data.</p>
+      <div class="actions">
+        <button class="primary" id="btn-warmup">Play the warm-up</button>
+        <button data-close>Got it</button>
+      </div>
     </div>
   </div>
 

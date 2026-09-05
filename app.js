@@ -8,8 +8,9 @@ const ALPHA = 'abcdefghijklmnopqrstuvwxyz';
 const VOCAB = {};                              // per word length: { dict: accepted guesses, common: par words }
 for (const L of Object.keys(WORDS)) VOCAB[L] = { common: new Set(WORDS[L].common), dict: new Set(WORDS[L].common.concat(WORDS[L].accepted)) };
 let DICT, COMMON, L = 5;                       // bound to the current mode in newGame
-const modeKey = () => (L === 5 ? '' : 'easy-');
-const modeName = () => (L === 5 ? 'standard' : 'easy');
+const modeKey = () => (L === 5 ? '' : L === 4 ? 'easy-' : 'warm-');
+const modeName = () => (L === 5 ? 'standard' : L === 4 ? 'easy' : 'warmup');
+const modeTitle = () => (L === 5 ? 'Unravel' : L === 4 ? 'Unravel Easy' : 'Unravel Warm-up');
 const SITE = 'www.ribbescobb.com/unravel';
 const FLIP_MS = 120, FLIP_LEN = 500;
 
@@ -100,7 +101,7 @@ const store = {
   get(k, fb) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const statsKey = () => 'unravel-stats' + (L === 5 ? '' : '-easy');
+const statsKey = () => 'unravel-stats' + (L === 5 ? '' : L === 4 ? '-easy' : '-warm');
 const emptyStats = () => ({ played: 0, overPar: 0, atPar: 0, streak: 0, last: 0 });
 // Stored stats may come from an older build with different fields; fill gaps and drop anything non-numeric.
 function loadStats() {
@@ -590,7 +591,7 @@ function emojiGrid() {
   return [state.start, ...state.path].map(w => [...w].map((_, i) => sq[tileClass(w, state.start, i)]).join('')).join('\n');
 }
 function shareText() {
-  const name = L === 5 ? 'Unravel' : 'Unravel Easy';
+  const name = modeTitle();
   const head = (state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`) + ` · par ${parFor(state.number)}`;
   return `${head}\n${emojiGrid()}\n${scoreLine()}\n${SITE}`;
 }
@@ -662,25 +663,88 @@ async function track(type, payload = {}) {
   } catch {}
 }
 
+/* ---------- tutorial: a real par-3 solve, played on a loop while the help sheet is open ---------- */
+const TUT_START = 'car';
+const TUT_STEPS = [                      // [committed rows, edit {pos, letter} or null, caption, hold ms]
+  [['car'], null, 'You start with the answer.', 1500],
+  [['car'], { pos: 2, letter: '' }, 'Pick a letter to change.', 1000],
+  [['car'], { pos: 2, letter: 't' }, 'R becomes T.', 900],
+  [['car', 'cat'], null, 'CAT. The R is gone, so it turns grey.', 1800],
+  [['car', 'cat'], { pos: 0, letter: '' }, 'Again.', 800],
+  [['car', 'cat'], { pos: 0, letter: 'b' }, 'C becomes B.', 900],
+  [['car', 'cat', 'bat'], null, 'BAT. Two letters of CAR are gone.', 1600],
+  [['car', 'cat', 'bat'], { pos: 1, letter: '' }, 'One left.', 800],
+  [['car', 'cat', 'bat'], { pos: 1, letter: 'i' }, 'A becomes I.', 900],
+  [['car', 'cat', 'bat', 'bit'], null, 'BIT. Nothing left of CAR. Three moves, par 3.', 2600],
+];
+let tutTimer = null;
+function tutRender(rows, edit, caption, flipLast) {
+  const board = $('tut-board');
+  board.innerHTML = '';
+  board.style.setProperty('--cols', 3);
+  rows.forEach((w, r) => {
+    const row = document.createElement('div');
+    row.className = 'row' + (r === 0 ? ' start' : '');
+    for (let i = 0; i < 3; i++) {
+      const t = document.createElement('div');
+      t.className = 'tile ' + tileClass(w, TUT_START, i);
+      if (flipLast && r === rows.length - 1 && r > 0) { t.classList.add('flip'); t.style.animationDelay = `${i * FLIP_MS}ms`; }
+      t.textContent = w[i];
+      row.appendChild(t);
+    }
+    board.appendChild(row);
+  });
+  if (edit) {
+    const prev = rows[rows.length - 1];
+    const row = document.createElement('div');
+    row.className = 'row';
+    for (let i = 0; i < 3; i++) {
+      const t = document.createElement('div');
+      t.className = 'tile ghost';
+      if (edit.pos === i) { t.classList.add('selected'); if (edit.letter) { t.classList.add('filled'); t.classList.add('pop'); } }
+      t.textContent = edit.pos === i && edit.letter ? edit.letter : prev[i];
+      row.appendChild(t);
+    }
+    board.appendChild(row);
+  }
+  $('tut-cap').textContent = caption;
+}
+function tutorialStart() {
+  tutorialStop();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    tutRender(['car', 'cat', 'bat', 'bit'], null, 'CAR to CAT to BAT to BIT. One letter per move until nothing of CAR is left.', false);
+    return;
+  }
+  let i = 0;
+  const step = () => {
+    const [rows, edit, cap, hold] = TUT_STEPS[i];
+    const prevRows = TUT_STEPS[(i + TUT_STEPS.length - 1) % TUT_STEPS.length][0];
+    tutRender(rows, edit, cap, rows.length > prevRows.length);
+    i = (i + 1) % TUT_STEPS.length;
+    tutTimer = setTimeout(step, hold);
+  };
+  step();
+}
+function tutorialStop() { clearTimeout(tutTimer); tutTimer = null; }
+
 /* ---------- modals ---------- */
-function open(id) { $(id).hidden = false; }
-function closeAll() { document.querySelectorAll('.modal').forEach(m => m.hidden = true); }
+function open(id) { $(id).hidden = false; if (id === 'modal-help') tutorialStart(); }
+function closeAll() { document.querySelectorAll('.modal').forEach(m => m.hidden = true); tutorialStop(); }
 
 /* ---------- boot ---------- */
 function boot() {
-  miniRows($('example'), ['brace', 'trace', 'trice', 'trick', 'thick', 'think'], 'brace');
-
   const params = new URLSearchParams(location.search);
   inputMode = store.get('unravel-input', 'keys') === 'reel' ? 'reel' : 'keys';
   document.querySelectorAll('[data-input]').forEach(b => b.classList.toggle('on', b.dataset.input === inputMode));
   $('keyboard').hidden = (inputMode === 'reel');
-  const savedMode = Number(store.get('unravel-mode', 5));
-  L = params.has('easy') ? 4 : (savedMode === 4 ? 4 : 5);
+  const savedMode = Number(store.get('unravel-mode', 0));
+  const firstVisit = !savedMode && !store.get('unravel-seen-help3', false);
+  L = params.has('easy') ? 4 : params.has('warm') ? 3 : [3, 4, 5].includes(savedMode) ? savedMode : firstVisit ? 3 : 5;
   const p = params.get('p');
   if (p && /^\d+$/.test(p)) newGame(parseInt(p, 10), parseInt(p, 10) !== todayNumber());
   else newGame(todayNumber(), false);
 
-  if (!store.get('unravel-seen-help2', false)) { open('modal-help'); store.set('unravel-seen-help2', true); }
+  if (!store.get('unravel-seen-help3', false)) { open('modal-help'); store.set('unravel-seen-help3', true); }
   track('pageView', { mode: modeName(), theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' });
 
   $('keyboard').addEventListener('click', e => { const k = e.target.closest('.key'); if (k) onKey(k.dataset.key); });
@@ -705,6 +769,7 @@ function boot() {
   $('btn-undo').addEventListener('click', undo);
   document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(Number(b.dataset.mode))));
   $('btn-help').addEventListener('click', () => open('modal-help'));
+  $('btn-warmup').addEventListener('click', () => { closeAll(); if (L !== 3) setMode(3); });
   $('btn-stats').addEventListener('click', showStats);
   $('btn-share').addEventListener('click', share);
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeAll));
