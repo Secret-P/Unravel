@@ -101,13 +101,46 @@ const store = {
   get(k, fb) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
-const statsKey = () => 'unravel-stats' + (L === 5 ? '' : L === 4 ? '-easy' : '-warm');
+const statsKeyFor = (Lx) => 'unravel-stats' + (Lx === 5 ? '' : Lx === 4 ? '-easy' : '-warm');
+const statsKey = () => statsKeyFor(L);
+const modeKeyFor = (Lx) => (Lx === 5 ? '' : Lx === 4 ? 'easy-' : 'warm-');
+const modeTitleFor = (Lx) => (Lx === 5 ? 'Standard' : Lx === 4 ? 'Easy' : 'Warm-up');
 const emptyStats = () => ({ played: 0, overPar: 0, atPar: 0, streak: 0, last: 0 });
 // Stored stats may come from an older build with different fields; fill gaps and drop anything non-numeric.
-function loadStats() {
-  const s = Object.assign(emptyStats(), store.get(statsKey(), {}));
+function loadStats(Lx = L) {
+  const s = Object.assign(emptyStats(), store.get(statsKeyFor(Lx), {}));
   for (const k of Object.keys(emptyStats())) if (typeof s[k] !== 'number' || Number.isNaN(s[k])) s[k] = 0;
   return s;
+}
+
+// Finished games saved on this device for a mode, with their par. The distribution chart is built from these.
+function history(Lx) {
+  const prefix = 'unravel-' + modeKeyFor(Lx);
+  const sch = SCHEDULE[Lx];
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k.startsWith(prefix)) continue;
+      const rest = k.slice(prefix.length);
+      if (!/^\d+$/.test(rest)) continue;
+      const g = store.get(k, null);
+      if (!g || g.status !== 'won' || !g.moves) continue;
+      const n = Number(rest);
+      out.push({ n, moves: g.moves, par: sch[((n - 1) % sch.length + sch.length) % sch.length][2] });
+    }
+  } catch {}
+  return out;
+}
+const bucketOf = (d) => (d < 0 ? 'under' : d === 0 ? 'par' : d === 1 ? 'p1' : d === 2 ? 'p2' : 'p3');
+function distHtml(Lx, highlight = null) {
+  const b = { under: 0, par: 0, p1: 0, p2: 0, p3: 0 };
+  for (const g of history(Lx)) b[bucketOf(g.moves - g.par)]++;
+  const max = Math.max(1, ...Object.values(b));
+  const rows = [['under', 'under'], ['par', 'par'], ['+1', 'p1'], ['+2', 'p2'], ['+3 or more', 'p3']];
+  return '<div class="dist">' + rows.map(([label, k]) =>
+    `<div class="dr${highlight === k ? ' hl' : ''}"><span class="dl">${label}</span><span class="db" style="width:${Math.max(7, 100 * b[k] / max)}%">${b[k]}</span></div>`
+  ).join('') + '</div>';
 }
 
 /* ---------- game state ---------- */
@@ -595,8 +628,8 @@ function shareText() {
   const head = (state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`) + ` · par ${parFor(state.number)}`;
   return `${head}\n${emojiGrid()}\n${scoreLine()}\n${SITE}`;
 }
-function statsHtml() {
-  const s = loadStats();
+let statsHtml = function (Lx = L) {
+  const s = loadStats(Lx);
   const avg = s.played ? s.overPar / s.played : 0;
   return [
     ['played', s.played],
@@ -604,7 +637,10 @@ function statsHtml() {
     ['at par', s.atPar],
     ['streak', s.streak],
   ].map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
-}
+};
+// wrap tile markup in a row so the stats block can stack rows and charts
+const _statsHtml = statsHtml;
+statsHtml = (Lx = L) => `<div class="stat-row">${_statsHtml(Lx)}</div>`;
 function showResult() {
   const d = state.moves - parFor(state.number);
   const onMap = state.path.every(w => COMMON.has(w));
@@ -612,7 +648,7 @@ function showResult() {
   const where = d < 0 ? ' Off the map: a shorter way than any in common words.' : (!onMap && d === 0 ? ' Off the map, and still par.' : '');
   $('result-body').textContent = `${state.start.toUpperCase()} is gone. ${scoreLine()}.${where}`;
   miniRows($('result-path'), [state.start, ...state.path], state.start);
-  $('stats').innerHTML = state.practice ? '' : statsHtml();
+  $('stats').innerHTML = state.practice ? '' : statsHtml() + distHtml(L, bucketOf(d));
   $('btn-share').hidden = false;
   open('modal-result');
 }
@@ -621,7 +657,9 @@ function showStats() {
   $('result-title').textContent = 'Stats';
   $('result-body').textContent = state.practice ? 'Practice games don\'t count.' : 'Finish today\'s puzzle to share it. New puzzle at midnight.';
   $('result-path').innerHTML = '';
-  $('stats').innerHTML = statsHtml();
+  $('stats').innerHTML = [3, 4, 5].map(Lx =>
+    `<h3 class="mode-h">${modeTitleFor(Lx)} <span>par ${Lx}</span></h3>` + statsHtml(Lx) + distHtml(Lx)
+  ).join('');
   $('btn-share').hidden = true;
   open('modal-result');
 }
