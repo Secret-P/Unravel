@@ -137,7 +137,8 @@ function distHtml(Lx, highlight = null) {
   const b = { under: 0, par: 0, p1: 0, p2: 0, p3: 0 };
   for (const g of history(Lx)) b[bucketOf(g.moves - g.par)]++;
   const max = Math.max(1, ...Object.values(b));
-  const rows = [['under', 'under'], ['par', 'par'], ['+1', 'p1'], ['+2', 'p2'], ['+3 or more', 'p3']];
+  // Under par needs a shortcut through uncommon words; with a 3-letter word par is already the floor, so no row.
+  const rows = [...(Lx === 3 ? [] : [['under', 'under']]), ['par', 'par'], ['+1', 'p1'], ['+2', 'p2'], ['+3 or more', 'p3']];
   return '<div class="dist">' + rows.map(([label, k]) =>
     `<div class="dr${highlight === k ? ' hl' : ''}"><span class="dl">${label}</span><span class="db" style="width:${Math.max(7, 100 * b[k] / max)}%">${b[k]}</span></div>`
   ).join('') + '</div>';
