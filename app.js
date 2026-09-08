@@ -792,7 +792,10 @@ function closeAll() { document.querySelectorAll('.modal').forEach(m => m.hidden 
 /* ---------- boot ---------- */
 function boot() {
   const params = new URLSearchParams(location.search);
-  inputMode = store.get('unravel-input', 'keys') === 'reel' ? 'reel' : 'keys';
+  // Default input by device: touch screens (phones, tablets) get the Dial, mouse/trackpad gets the keyboard. A saved choice wins.
+  const touchDevice = matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  const savedInput = store.get('unravel-input', null);
+  inputMode = savedInput ? (savedInput === 'reel' ? 'reel' : 'keys') : (touchDevice ? 'reel' : 'keys');
   document.querySelectorAll('[data-input]').forEach(b => b.classList.toggle('on', b.dataset.input === inputMode));
   $('keyboard').hidden = (inputMode === 'reel');
   const savedMode = Number(store.get('unravel-mode', 0));
