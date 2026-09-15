@@ -666,7 +666,7 @@ function showResult() {
   $('result-body').textContent = `${state.start.toUpperCase()} is gone. ${scoreLine()}.${where}`;
   miniRows($('result-path'), [state.start, ...state.path], state.start);
   $('result-shortest').innerHTML = '';
-  $('btn-shortest').hidden = false;
+  $('btn-shortest').hidden = d <= 0;   // only offer the reveal when a genuinely shorter route exists
   $('stats').innerHTML = state.practice ? '' : statsHtml() + distHtml(L, bucketOf(d));
   $('btn-share').hidden = false;
   open('modal-result');
@@ -857,7 +857,7 @@ function boot() {
   $('btn-shortest').addEventListener('click', () => {
     const p = shortestPath(state.start);
     const box = $('result-shortest');
-    box.innerHTML = `<p class="shortest-label">One shortest path, ${p.length} moves:</p>`;
+    box.innerHTML = `<p class="shortest-label">A shorter path, ${p.length} moves:</p>`;
     const grid = document.createElement('div'); grid.className = 'mini'; box.appendChild(grid);
     miniRows(grid, [state.start, ...p], state.start);
     $('btn-shortest').hidden = true;
