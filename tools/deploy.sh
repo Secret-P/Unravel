@@ -13,9 +13,11 @@ cd "$DEST"
 git add unravel
 if git diff --cached --quiet; then echo "No file changes; pushing any pending deploy commit."; else git commit -q -m "Unravel: deploy $SHA"; fi
 git pull -q --rebase origin main || { echo "PULL FAILED: resolve in $DEST and rerun."; exit 1; }
-gh auth switch --user ribbescobb >/dev/null 2>&1
-git -c credential.helper='!gh auth git-credential' push origin HEAD || { gh auth switch --user Secret-P >/dev/null 2>&1; echo "PUSH FAILED: not deployed."; exit 1; }
-gh auth switch --user Secret-P >/dev/null 2>&1
+# The ribbescobb gh login may or may not exist on this machine; Secret-P can push to the site repo too.
+# Never let the account switch abort the script (set -e) — that was the cause of silent non-deploys.
+gh auth switch --user ribbescobb >/dev/null 2>&1 || true
+git -c credential.helper='!gh auth git-credential' push origin HEAD || { gh auth switch --user Secret-P >/dev/null 2>&1 || true; echo "PUSH FAILED: not deployed."; exit 1; }
+gh auth switch --user Secret-P >/dev/null 2>&1 || true
 git fetch -q origin
 [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "VERIFY FAILED: origin/main is not at HEAD. Not deployed."; exit 1; }
 echo "Deployed $SHA -> https://ribbescobb.com/unravel/ (origin/main = $(git rev-parse --short HEAD))"
