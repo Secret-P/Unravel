@@ -811,14 +811,14 @@ function tutorialStop() { clearTimeout(tutTimer); tutTimer = null; }
 function renderTip() {
   const tipped = store.get('unravel-tipped', false);
   $('tip').hidden = false;
-  $('btn-tip').textContent = tipped ? 'Tipped. Thank you.' : '☕ Tip the dad';
-  $('btn-tip').disabled = tipped;
+  const a = $('btn-tip');
+  a.textContent = tipped ? 'Tipped. Thank you.' : '☕ Tip the dad';
+  a.classList.toggle('done', tipped);
+  if (tipped) a.removeAttribute('href'); else a.href = TIP_URL;
   $('tip-note').textContent = tipped ? 'Coffee acquired.' : 'Buys nothing yet except our thanks.';
 }
-function openTip() {
-  track('Unravel.tipClicked', { mode: modeName() });
-  window.open(TIP_URL, '_blank', 'noopener');
-}
+// Real links, not window.open: iOS Safari's pop-up blocker (on by default) swallows window.open even from a tap.
+function noteTip() { track('Unravel.tipClicked', { mode: modeName() }); }
 function handleThanks(params) {
   if (!params.has('thanks')) return;
   store.set('unravel-tipped', true);
@@ -875,8 +875,8 @@ function boot() {
   $('btn-warmup').addEventListener('click', () => { closeAll(); if (L !== 3) setMode(3); });
   $('btn-stats').addEventListener('click', showStats);
   $('btn-share').addEventListener('click', share);
-  $('btn-tip').addEventListener('click', openTip);
-  $('help-tip').addEventListener('click', (e) => { e.preventDefault(); openTip(); });
+  $('btn-tip').addEventListener('click', noteTip);
+  $('help-tip').addEventListener('click', noteTip);
   $('btn-shortest').addEventListener('click', () => {
     const p = shortestPath(state.start);
     const box = $('result-shortest');
