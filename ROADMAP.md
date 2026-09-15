@@ -29,6 +29,8 @@ The one server-shaped problem. Everything else with a server hangs off it.
 
 ## 3. Monetization: tip jar unlocks the archive
 
+**2026-09-15: the tip jar itself is live** (Stripe Payment Link, customers choose what to pay, suggested $3, min $1, nontaxable tax code, redirect to `?thanks=1`). "Tip the dad" on the result sheet and a link in the help sheet; a local `unravel-tipped` flag turns the button into a thank-you; `Unravel.tipClicked` in telemetry. It unlocks nothing yet. The unlock-code flow below is what remains.
+
 Pay-what-you-want with a floor. "Tip the dad anything over $3 and every puzzle we've ever run is yours."
 
 - **Web:** Stripe payment link with custom amount + minimum. On success, the Worker confirms the payment and issues a short **unlock code**; entering the code on any device opens the archive. No accounts required; sharing a code with a friend is the model working as intended.

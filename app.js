@@ -12,6 +12,7 @@ const modeKey = () => (L === 5 ? '' : L === 4 ? 'easy-' : 'warm-');
 const modeName = () => (L === 5 ? 'standard' : L === 4 ? 'easy' : 'warmup');
 const modeTitle = () => (L === 5 ? 'Unravel' : L === 4 ? 'Unravel Easy' : 'Unravel Warm-up');
 const SITE = 'www.ribbescobb.com/unravel';
+const TIP_URL = 'https://buy.stripe.com/6oU7sL0i7atA9pB5oceIw00';   // Stripe payment link: customers choose what to pay
 const FLIP_MS = 120, FLIP_LEN = 500;
 
 const $ = (id) => document.getElementById(id);
@@ -667,6 +668,7 @@ function showResult() {
   miniRows($('result-path'), [state.start, ...state.path], state.start);
   $('result-shortest').innerHTML = '';
   $('btn-shortest').hidden = d <= 0;   // only offer the reveal when a genuinely shorter route exists
+  renderTip();
   $('stats').innerHTML = state.practice ? '' : statsHtml() + distHtml(L, bucketOf(d));
   $('btn-share').hidden = false;
   open('modal-result');
@@ -805,6 +807,25 @@ function tutorialStart() {
 }
 function tutorialStop() { clearTimeout(tutTimer); tutTimer = null; }
 
+/* ---------- tip jar ---------- */
+function renderTip() {
+  const tipped = store.get('unravel-tipped', false);
+  $('tip').hidden = false;
+  $('btn-tip').textContent = tipped ? 'Tipped. Thank you.' : '☕ Tip the dad';
+  $('btn-tip').disabled = tipped;
+  $('tip-note').textContent = tipped ? 'Coffee acquired.' : 'Buys nothing yet except our thanks.';
+}
+function openTip() {
+  track('Unravel.tipClicked', { mode: modeName() });
+  window.open(TIP_URL, '_blank', 'noopener');
+}
+function handleThanks(params) {
+  if (!params.has('thanks')) return;
+  store.set('unravel-tipped', true);
+  try { history.replaceState(null, '', location.pathname); } catch {}
+  setTimeout(() => toast('Thank you. Coffee acquired.', 2600), 600);
+}
+
 /* ---------- modals ---------- */
 function open(id) { $(id).hidden = false; if (id === 'modal-help') tutorialStart(); }
 function closeAll() { document.querySelectorAll('.modal').forEach(m => m.hidden = true); tutorialStop(); }
@@ -854,6 +875,8 @@ function boot() {
   $('btn-warmup').addEventListener('click', () => { closeAll(); if (L !== 3) setMode(3); });
   $('btn-stats').addEventListener('click', showStats);
   $('btn-share').addEventListener('click', share);
+  $('btn-tip').addEventListener('click', openTip);
+  $('help-tip').addEventListener('click', (e) => { e.preventDefault(); openTip(); });
   $('btn-shortest').addEventListener('click', () => {
     const p = shortestPath(state.start);
     const box = $('result-shortest');
@@ -864,5 +887,6 @@ function boot() {
   });
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeAll));
   document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) closeAll(); }));
+  handleThanks(params);
 }
 boot();
