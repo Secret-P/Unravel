@@ -11,7 +11,7 @@ cp "$SRC"/style.css "$SRC"/app.js "$SRC"/words.js "$SRC"/puzzles.js "$SRC"/og.pn
 sed -E "s/(href|src)=\"(style\.css|app\.js|words\.js|puzzles\.js)\"/\1=\"\2?v=$SHA\"/g" "$SRC/index.html" > "$DEST/unravel/index.html"
 cd "$DEST"
 git add unravel
-git commit -q -m "Unravel: deploy $SHA" || { echo "Nothing to deploy."; exit 0; }
+if git diff --cached --quiet; then echo "No file changes; pushing any pending deploy commit."; else git commit -q -m "Unravel: deploy $SHA"; fi
 git pull -q --rebase origin main || { echo "PULL FAILED: resolve in $DEST and rerun."; exit 1; }
 gh auth switch --user ribbescobb >/dev/null 2>&1
 git -c credential.helper='!gh auth git-credential' push origin HEAD || { gh auth switch --user Secret-P >/dev/null 2>&1; echo "PUSH FAILED: not deployed."; exit 1; }
