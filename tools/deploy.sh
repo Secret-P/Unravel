@@ -12,7 +12,10 @@ sed -E "s/(href|src)=\"(style\.css|app\.js|words\.js|puzzles\.js)\"/\1=\"\2?v=$S
 cd "$DEST"
 git add unravel
 git commit -q -m "Unravel: deploy $SHA" || { echo "Nothing to deploy."; exit 0; }
+git pull -q --rebase origin main || { echo "PULL FAILED: resolve in $DEST and rerun."; exit 1; }
 gh auth switch --user ribbescobb >/dev/null 2>&1
-git -c credential.helper='!gh auth git-credential' push -q origin HEAD
+git -c credential.helper='!gh auth git-credential' push origin HEAD || { gh auth switch --user Secret-P >/dev/null 2>&1; echo "PUSH FAILED: not deployed."; exit 1; }
 gh auth switch --user Secret-P >/dev/null 2>&1
-echo "Deployed $SHA -> https://ribbescobb.com/unravel/"
+git fetch -q origin
+[ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] || { echo "VERIFY FAILED: origin/main is not at HEAD. Not deployed."; exit 1; }
+echo "Deployed $SHA -> https://ribbescobb.com/unravel/ (origin/main = $(git rev-parse --short HEAD))"
