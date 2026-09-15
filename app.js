@@ -138,7 +138,7 @@ function distHtml(Lx, highlight = null) {
   for (const g of history(Lx)) b[bucketOf(g.moves - g.par)]++;
   const max = Math.max(1, ...Object.values(b));
   // Under par needs a shortcut through uncommon words; with a 3-letter word par is already the floor, so no row.
-  const rows = [...(Lx === 3 ? [] : [['under', 'under']]), ['par', 'par'], ['+1', 'p1'], ['+2', 'p2'], ['+3 or more', 'p3']];
+  const rows = [...(Lx === 3 ? [] : [['shorter', 'under']]), ['shortest', 'par'], ['+1', 'p1'], ['+2', 'p2'], ['+3 or more', 'p3']];
   return '<div class="dist">' + rows.map(([label, k]) =>
     `<div class="dr${highlight === k ? ' hl' : ''}"><span class="dl">${label}</span><span class="db" style="width:${Math.max(7, 100 * b[k] / max)}%">${b[k]}</span></div>`
   ).join('') + '</div>';
@@ -605,7 +605,7 @@ function elapsedNow() {
 }
 function renderClock() {
   clearInterval(clockTimer);
-  const label = (state.practice ? `Practice · ${state.start.toUpperCase()}` : `#${state.number}`) + ` · par ${parFor(state.number)}`;
+  const label = (state.practice ? `Practice · ${state.start.toUpperCase()}` : `#${state.number}`) + ` · shortest ${parFor(state.number)}`;
   const tick = () => { $('subtitle').textContent = state.startedAt ? `${label} · ${fmt(elapsedNow())}` : label; };
   tick();
   renderUndo();
@@ -614,11 +614,27 @@ function renderClock() {
 
 /* ---------- result / share ---------- */
 function vsPar() {
-  const d = state.moves - parFor(state.number);
-  return d === 0 ? 'par' : d > 0 ? `+${d} over par` : `${d} under par`;
+  const p = parFor(state.number), d = state.moves - p;
+  return d === 0 ? 'the shortest path' : d > 0 ? `shortest path ${p}` : `off the map (shortest known ${p})`;
 }
 function scoreLine() {
   return `${state.moves} move${state.moves === 1 ? '' : 's'} · ${vsPar()} · ⏱ ${fmt(state.elapsed)}`;
+}
+// One shortest route from the start through the common vocabulary (breadth-first, so it is minimal).
+function shortestPath(start) {
+  const prev = new Map([[start, null]]);
+  let q = [start];
+  for (let d = 0; d < 16 && q.length; d++) {
+    const next = [];
+    for (const w of q) for (const x of neighbors(w, COMMON)) {
+      if (prev.has(x)) continue;
+      prev.set(x, w);
+      if (isClean(x, start)) { const out = [x]; while (prev.get(out[out.length - 1])) out.push(prev.get(out[out.length - 1])); return out.reverse().slice(1); }
+      next.push(x);
+    }
+    q = next;
+  }
+  return null;
 }
 function emojiGrid() {
   const sq = { green: '🟩', yellow: '🟨', grey: '⬜' };
@@ -626,7 +642,7 @@ function emojiGrid() {
 }
 function shareText() {
   const name = modeTitle();
-  const head = (state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`) + ` · par ${parFor(state.number)}`;
+  const head = (state.practice ? `${name} · ${state.start.toUpperCase()}` : `${name} #${state.number}`) + ` · shortest path ${parFor(state.number)}`;
   return `${head}\n${emojiGrid()}\n${scoreLine()}\n${SITE}`;
 }
 let statsHtml = function (Lx = L) {
@@ -634,8 +650,8 @@ let statsHtml = function (Lx = L) {
   const avg = s.played ? s.overPar / s.played : 0;
   return [
     ['played', s.played],
-    ['vs par', s.played ? (avg > 0 ? '+' : '') + avg.toFixed(1) : '–'],
-    ['at par', s.atPar],
+    ['vs shortest', s.played ? (avg > 0 ? '+' : '') + avg.toFixed(1) : '–'],
+    ['matched', s.atPar],
     ['streak', s.streak],
   ].map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
 };
@@ -645,10 +661,12 @@ statsHtml = (Lx = L) => `<div class="stat-row">${_statsHtml(Lx)}</div>`;
 function showResult() {
   const d = state.moves - parFor(state.number);
   const onMap = state.path.every(w => COMMON.has(w));
-  $('result-title').textContent = d < 0 ? 'Clean sweep. Under par.' : d === 0 ? 'Clean sweep. Par.' : 'Clean sweep.';
-  const where = d < 0 ? ' Off the map: a shorter way than any in common words.' : (!onMap && d === 0 ? ' Off the map, and still par.' : '');
+  $('result-title').textContent = d < 0 ? 'Clean sweep. Off the map.' : d === 0 ? 'Clean sweep. Shortest path.' : 'Clean sweep.';
+  const where = d < 0 ? ' Shorter than any route through common words.' : (!onMap && d === 0 ? ' Off the map, and still the shortest.' : '');
   $('result-body').textContent = `${state.start.toUpperCase()} is gone. ${scoreLine()}.${where}`;
   miniRows($('result-path'), [state.start, ...state.path], state.start);
+  $('result-shortest').innerHTML = '';
+  $('btn-shortest').hidden = false;
   $('stats').innerHTML = state.practice ? '' : statsHtml() + distHtml(L, bucketOf(d));
   $('btn-share').hidden = false;
   open('modal-result');
@@ -658,8 +676,10 @@ function showStats() {
   $('result-title').textContent = 'Stats';
   $('result-body').textContent = state.practice ? 'Practice games don\'t count.' : 'Finish today\'s puzzle to share it. New puzzle at midnight.';
   $('result-path').innerHTML = '';
+  $('result-shortest').innerHTML = '';
+  $('btn-shortest').hidden = true;
   $('stats').innerHTML = [3, 4, 5].map(Lx =>
-    `<h3 class="mode-h">${modeTitleFor(Lx)} <span>par ${Lx}</span></h3>` + statsHtml(Lx) + distHtml(Lx)
+    `<h3 class="mode-h">${modeTitleFor(Lx)} <span>${Lx} letters</span></h3>` + statsHtml(Lx) + distHtml(Lx)
   ).join('');
   $('btn-share').hidden = true;
   open('modal-result');
@@ -717,7 +737,7 @@ const TUT_STEPS = [                      // [committed rows, edit {pos, letter} 
   [['car', 'can', 'ran'], { pos: 0, letter: 't' }, 'So R becomes T.', 1000],
   [['car', 'can', 'ran', 'tan'], null, 'TAN. Grey again.', 1400],
   [['car', 'can', 'ran', 'tan'], { pos: 1, letter: 'i' }, 'Last one. A becomes I.', 1000],
-  [['car', 'can', 'ran', 'tan', 'tin'], null, 'TIN. Nothing left of CAR. Four moves on a par 3: the R detour cost one.', 3200],
+  [['car', 'can', 'ran', 'tan', 'tin'], null, 'TIN. Nothing left of CAR. Four moves; the shortest path is three. The R detour cost one.', 3200],
 ];
 /* Original clean line, no yellow:
 const TUT_STEPS = [
@@ -768,7 +788,7 @@ function tutRender(rows, edit, caption, flipLast) {
 function tutorialStart() {
   tutorialStop();
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    tutRender(['car', 'can', 'ran', 'tan', 'tin'], null, 'CAR to CAN to RAN to TAN to TIN. One letter per move until nothing of CAR is left; the yellow R had to go again.', false);
+    tutRender(['car', 'can', 'ran', 'tan', 'tin'], null, 'CAR to CAN to RAN to TAN to TIN. One letter per move until nothing of CAR is left; the yellow R had to go again. The shortest path is three.', false);
     return;
   }
   $('tut-replay').hidden = true;
@@ -834,6 +854,14 @@ function boot() {
   $('btn-warmup').addEventListener('click', () => { closeAll(); if (L !== 3) setMode(3); });
   $('btn-stats').addEventListener('click', showStats);
   $('btn-share').addEventListener('click', share);
+  $('btn-shortest').addEventListener('click', () => {
+    const p = shortestPath(state.start);
+    const box = $('result-shortest');
+    box.innerHTML = `<p class="shortest-label">One shortest path, ${p.length} moves:</p>`;
+    const grid = document.createElement('div'); grid.className = 'mini'; box.appendChild(grid);
+    miniRows(grid, [state.start, ...p], state.start);
+    $('btn-shortest').hidden = true;
+  });
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeAll));
   document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) closeAll(); }));
 }
