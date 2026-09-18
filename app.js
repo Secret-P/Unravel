@@ -675,6 +675,7 @@ function showResult() {
   renderTip();
   $('stats').innerHTML = state.practice ? '' : statsHtml() + distHtml(L, bucketOf(d));
   $('btn-share').hidden = false;
+  $('share-text').hidden = true;
   open('modal-result');
 }
 function showStats() {
@@ -688,16 +689,53 @@ function showStats() {
     `<h3 class="mode-h">${modeTitleFor(Lx)} <span>${Lx} letters</span></h3>` + statsHtml(Lx) + distHtml(Lx)
   ).join('');
   $('btn-share').hidden = true;
+  $('share-text').hidden = true;
   open('modal-result');
+}
+// The Clipboard API needs a secure context, a focused document and permission; execCommand covers the gaps.
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch { return false; }
+}
+function flashShare(label) {
+  const b = $('btn-share');
+  if (!b.dataset.label) b.dataset.label = b.textContent;
+  b.textContent = label;
+  clearTimeout(flashShare.t);
+  flashShare.t = setTimeout(() => { b.textContent = b.dataset.label; }, 1800);
 }
 async function share() {
   const text = shareText();
-  try {
-    if (navigator.share && /Mobi|Android|iPhone|iPad/.test(navigator.userAgent)) { await navigator.share({ text }); track('Unravel.shared', { mode: modeName(), via: 'sheet' }); return; }
-    await navigator.clipboard.writeText(text);
+  if (navigator.share && /Mobi|Android|iPhone|iPad/.test(navigator.userAgent)) {
+    try { await navigator.share({ text }); track('Unravel.shared', { mode: modeName(), via: 'sheet' }); } catch {}   // cancelling isn't a failure
+    return;
+  }
+  if (await copyText(text)) {
+    flashShare('Copied!');
     toast('Copied to clipboard');
     track('Unravel.shared', { mode: modeName(), via: 'clipboard' });
-  } catch { toast('Could not share'); }
+    return;
+  }
+  // Nothing could reach the clipboard: show the card so it can be copied by hand.
+  const box = $('share-text');
+  box.value = text;
+  box.hidden = false;
+  box.scrollIntoView({ block: 'nearest' });
+  box.focus();
+  box.select();
+  flashShare('Copy it below');
+  track('Unravel.shared', { mode: modeName(), via: 'manual' });
 }
 
 /* ---------- telemetry: TelemetryDeck, no cookies, no personal data ----------
