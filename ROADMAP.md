@@ -84,7 +84,7 @@ Instagram Stories take images, not text. Render the Loom board to a 1080×1920 i
 - **Reset puzzle** (parked): retries as labelled attempts; first finish counts; share card stays the first finish. Workaround: `?p=N` loads any other day as uncounted practice.
 - **Wordle mentions**: page meta descriptions and the OG card image still say "Wordle, backwards." Help-sheet credit ("Born in a family Wordle thread") deliberately kept.
 - **Difficulty curation**: once `Unravel.puzzleSolved` has volume, chart avg moves-over-par by puzzle number; retire strolls and walls from the schedules.
-- **Share card length**: a 15-move ladder makes a very tall card. Consider capping the grid or summarising.
+- ~~**Share card length**~~ done 2026-09-17: over 10 rows, the share text keeps the first 4 and last 4 and replaces the middle with a deadpan omission line ("⋯ 10 rows hidden. I was very thorough."). Result sheet still shows every row.
 - **Warm-up as tutorial only**: if telemetry shows Warm-up played once and abandoned, fold it into the tutorial and go back to two tabs.
 - **Combined "today's round" card**: if people play all three modes, one share card summing them.
 

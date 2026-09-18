@@ -641,9 +641,20 @@ function shortestPath(start) {
   }
   return null;
 }
+// A long ladder makes an unreadable card in a group chat, so the share text keeps the opening and the
+// finish and owns the omission. The result sheet still shows every row.
+const GRID_MAX = 10, GRID_HEAD = 4, GRID_TAIL = 4;
+function hiddenLine(n) {
+  if (n >= 15) return `⋯ ${n} rows hidden. I explored every option. Every single one.`;
+  if (n >= 7) return `⋯ ${n} rows hidden. I was very thorough.`;
+  return `⋯ ${n} rows hidden. I was thorough.`;
+}
 function emojiGrid() {
   const sq = { green: '🟩', yellow: '🟨', grey: '⬜' };
-  return [state.start, ...state.path].map(w => [...w].map((_, i) => sq[tileClass(w, state.start, i)]).join('')).join('\n');
+  const rows = [state.start, ...state.path].map(w => [...w].map((_, i) => sq[tileClass(w, state.start, i)]).join(''));
+  if (rows.length <= GRID_MAX) return rows.join('\n');
+  const hidden = rows.length - GRID_HEAD - GRID_TAIL;
+  return [...rows.slice(0, GRID_HEAD), hiddenLine(hidden), ...rows.slice(-GRID_TAIL)].join('\n');
 }
 function shareText() {
   const name = modeTitle();
