@@ -540,8 +540,12 @@ function flashRow(r, cls) {
   setTimeout(() => row.classList.remove(cls), 700);
 }
 function renderUndo() {
+  // A solved puzzle keeps a way back to the share sheet; Back only makes sense while playing.
+  const won = state.status === 'won';
   const b = $('btn-undo');
   b.disabled = !(state.status === 'playing' && state.path.length > 0);
+  b.hidden = won;
+  $('btn-reshare').hidden = !won;
   $('moves').textContent = state.moves ? `${state.moves} move${state.moves === 1 ? '' : 's'}` : '';
 }
 function renderKeyboard() {
@@ -869,6 +873,7 @@ function boot() {
     } else if (e.key === 'Escape' || e.key === 'Enter') closeAll();
   });
   $('btn-undo').addEventListener('click', undo);
+  $('btn-reshare').addEventListener('click', () => showResult());
   document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(Number(b.dataset.mode))));
   $('btn-help').addEventListener('click', () => open('modal-help'));
   $('tut-replay').addEventListener('click', tutorialStart);
